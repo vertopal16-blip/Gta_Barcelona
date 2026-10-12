@@ -87,7 +87,7 @@ export class Combat {
   constructor(game) {
     this.game = game;
     const scene = game.scene;
-    this.fx = new Particles(scene, 1500, true);
+    this.fx = new Particles(scene, 4000, true);
     this.smoke = new Particles(scene, 1500, false);
     // Trazadoras
     this.tracers = [];
@@ -155,7 +155,7 @@ export class Combat {
       }
     }
     this.tracerLines.geometry.attributes.position.needsUpdate = true;
-    if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.flash.intensity = 0; }
+    if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) { this.flash.intensity = 0; this.flash.distance = 25; this.flash.color.set(0xffb060); } }
     for (const fb of [...this.fireballs]) {
       fb.t += dt;
       const k = fb.t / 0.9;
@@ -259,7 +259,7 @@ export class Combat {
         this.blood(hit.x, hit.y, hit.z, 6);
         this.applyDamage(p, dmg, attacker, 'bullet');
         if (p.alive && dmg > 25 && rand() < 0.3) g.peds.knock(p, (hit.x - ox) * 0.05, (hit.z - oz) * 0.05, 0);
-        if (attacker === g.player) g.hud.hitMarker(!p.alive);
+        if (attacker === g.player) { g.hud.hitMarker(!p.alive); g.skills.add('punteria', hit.head ? 4 : 2); }
         break;
       }
       case 'player':
@@ -296,7 +296,7 @@ export class Combat {
     const W = WEAPONS[weapon];
     const pellets = W.pellets || 1;
     const moving = g.player.speed > 2 ? 1.8 : 1;
-    const spread = W.spread * moving * (g.player.vehicle ? 2 : 1);
+    const spread = W.spread * moving * (g.player.vehicle ? 2 : 1) * g.skills.spreadMul;
     // Punto al que apunta la cámara
     const cam = g.camera.camera.position;
     for (let k = 0; k < pellets; k++) {

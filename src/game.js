@@ -7,6 +7,7 @@ import { Input } from './core/input.js';
 import { CameraRig } from './core/camera.js';
 import { audio } from './core/audio.js';
 import { radio, STATIONS } from './core/radio.js';
+import { PostFX } from './core/post.js';
 import { events } from './core/events.js';
 import { rand, dist2, clamp, formatMoney } from './core/utils.js';
 import { Player } from './entities/player.js';
@@ -19,6 +20,9 @@ import { Economy, PROPERTIES } from './systems/economy.js';
 import { Missions, CONTACTS, MISSIONS } from './systems/missions.js';
 import { Activities } from './systems/activities.js';
 import { Ambient } from './systems/ambient.js';
+import { Gangs } from './systems/gangs.js';
+import { Skills } from './systems/skills.js';
+import { Fireworks } from './systems/fireworks.js';
 import { SaveSystem } from './systems/save.js';
 import { HUD, Blips, GPS, BigMap, UI } from './ui/hud.js';
 import { LaneDriver } from './entities/traffic.js';
@@ -26,9 +30,9 @@ import { VEHICLE_TYPES } from './entities/vehicle.js';
 
 /** Niveles de calidad gráfica. */
 export const QUALITY = {
-  baja: { name: 'Baja', ratio: 0.75, shadow: 0, view: 0.6, traffic: 18, peds: 24, lamps: 0 },
-  media: { name: 'Media', ratio: 1, shadow: 1024, view: 0.85, traffic: 26, peds: 34, lamps: 4 },
-  alta: { name: 'Alta', ratio: 'max', shadow: 2048, view: 1, traffic: 30, peds: 42, lamps: 8 },
+  baja: { name: 'Baja', ratio: 0.75, shadow: 0, view: 0.6, traffic: 18, peds: 24, lamps: 0, post: 'off' },
+  media: { name: 'Media', ratio: 1, shadow: 1024, view: 0.85, traffic: 26, peds: 34, lamps: 4, post: 'grade' },
+  alta: { name: 'Alta', ratio: 'max', shadow: 2048, view: 1, traffic: 30, peds: 42, lamps: 8, post: 'bloom' },
 };
 const QUALITY_ORDER = ['baja', 'media', 'alta'];
 
@@ -63,8 +67,10 @@ export class Game {
       goodDeeds: 0, busted: 0, wasted: 0, longestJump: 0, distance: 0, time: 0, missions: 0, properties: 0, weaponsBought: 0,
     };
     this.missionData = { CONTACTS, MISSIONS };
+    this.post = new PostFX(this.renderer, this.scene, this.camera3);
     window.addEventListener('resize', () => {
       this.renderer.setSize(innerWidth, innerHeight);
+      this.post.setSize(innerWidth, innerHeight);
       this.camera3.aspect = innerWidth / innerHeight;
       this.camera3.updateProjectionMatrix();
     });
@@ -92,6 +98,10 @@ export class Game {
     this.missions = new Missions(this);
     this.activities = new Activities(this);
     this.ambient = new Ambient(this);
+    this.gangs = new Gangs(this);
+    this.skills = new Skills(this);
+    this.fireworks = new Fireworks(this);
+    this.world.sky.onThunder = () => { audio.play('thunder'); this.camera.shake(0.05, 1); };
     this.save = new SaveSystem(this);
     this.hud.buildMapCanvas();
     this.economy.setup();
@@ -159,6 +169,9 @@ export class Game {
     }
     this.renderer.setPixelRatio(Q.ratio === 'max' ? Math.min(window.devicePixelRatio, 1.5) : Q.ratio);
     this.renderer.setSize(innerWidth, innerHeight);
+    this.post.setSize(innerWidth, innerHeight);
+    this.post.enabled = Q.post !== 'off';
+    this.post.bloomOn = Q.post === 'bloom';
     this.world.maxLampLights = Q.lamps;
     this.viewFactor = s.view * Q.view;
     this.scene.traverse((o) => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach((x) => (x.needsUpdate = true)); } });
@@ -323,7 +336,7 @@ export class Game {
       const st = radio.station;
       if (st) setTimeout(() => this.hud.notify(`📻 <b>${st.name}</b> · ${st.desc} <small>(<kbd>N</kbd> cambiar)</small>`, 4), 600);
     } else radio.index = -1;
-    this.hud.notify(`<b>${v.T.name}</b>${v.T.taxi ? ' · Pulsa <kbd>J</kbd> para hacer de taxista' : v.type === 'scooter' ? ' · Pulsa <kbd>J</kbd> para repartir comida' : v.T.police ? ' · <kbd>J</kbd> vigilante · <kbd>G</kbd> sirena' : ''}`, 4);
+    this.hud.notify(`<b>${v.T.name}</b>${v.T.taxi ? ' · Pulsa <kbd>J</kbd> para hacer de taxista' : v.type === 'scooter' ? ' · Pulsa <kbd>J</kbd> para repartir comida' : v.T.police ? ' · <kbd>J</kbd> vigilante · <kbd>G</kbd> sirena' : v.isHeli ? ' · <kbd>Espacio</kbd> subir · <kbd>C</kbd> bajar · <kbd>W</kbd>/<kbd>S</kbd> avanzar · <kbd>A</kbd>/<kbd>D</kbd> girar' : v.upgrades?.nitro ? ' · <kbd>Shift</kbd> nitro' : ''}`, 5);
     if (v === this.cousinCar) this.blips.removeTemp();
   }
 
@@ -408,7 +421,7 @@ export class Game {
   spawnStoredVehicle(p, stored) {
     const ne = this.world.roads.nearestEdge(p.x, p.z, 60, (e) => !e.noTraffic);
     if (!ne) return;
-    const v = this.vehicles.spawn(stored.type, ne.x, ne.z, Math.atan2(ne.edge.dx, ne.edge.dz), { color: stored.color, persistent: true });
+    const v = this.vehicles.spawn(stored.type, ne.x, ne.z, Math.atan2(ne.edge.dx, ne.edge.dz), { color: stored.color, persistent: true, upgrades: stored.upgrades });
     v.playerOwned = true;
     this.hud.notify(`Tu ${VEHICLE_TYPES[stored.type].name} está en la calle.`);
   }
@@ -499,6 +512,9 @@ export class Game {
       this.missions.update(dt);
       this.activities.update(dt);
       this.ambient.update(dt);
+      this.gangs.update(dt);
+      this.skills.update(dt);
+      this.fireworks.update(dt);
       this.economy.update(dt);
       this.gps.update(dt);
       audio.listener.x = focus.x; audio.listener.z = focus.z;
@@ -513,7 +529,18 @@ export class Game {
     }
     radio.volume = this.settings.radio ?? 0.5;
     radio.setActive(this.started && !this.paused && !!pl.vehicle && !pl.dead);
-    if (render) this.renderer.render(this.scene, this.camera3);
+    if (render) {
+      if (this.post.enabled && this.started) {
+        const hurt = pl.dead ? 1 : Math.max(0, (45 - pl.health) / 45);
+        let flash = 0;
+        if (this.police.level > 0 && this.police.units.some((u) => !u.destroyed && dist2(u.x, u.z, pl.x, pl.z) < 50)) {
+          flash = 0.5 + 0.5 * Math.sin(performance.now() * 0.012);
+          this.post.grade.uniforms.flashColor.value.setRGB(...(Math.sin(performance.now() * 0.006) > 0 ? [1, 0.1, 0.1] : [0.1, 0.3, 1]));
+        }
+        this.post.update(realDt, this.world.sky.night, this.world.sky.rain, hurt, flash);
+        this.post.render();
+      } else this.renderer.render(this.scene, this.camera3);
+    }
     this.input.endFrame();
   }
 }

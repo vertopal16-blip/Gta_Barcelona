@@ -209,6 +209,12 @@ export class Humanoid {
       case 'ride':
         ll = -1.1; rl = -1.1; kl = kr = 1.3; la = -1.0; ra = -1.0; el = er = -0.3; lean = 0.25; hipsY = 0.75; armSideL = -0.15; armSideR = -0.15;
         break;
+      case 'pedal': {
+        const ps = Math.sin(this.phase * 1.2);
+        ll = -1.0 + ps * 0.45; rl = -1.0 - ps * 0.45; kl = 1.3 - ps * 0.5; kr = 1.3 + ps * 0.5;
+        la = -1.05; ra = -1.05; el = er = -0.25; lean = 0.3; hipsY = 0.95; armSideL = -0.12; armSideR = -0.12;
+        break;
+      }
       case 'swim':
         lean = 1.35; ll = s * 0.4; rl = -s * 0.4; la = -2.5 + s * 1.2; ra = -2.5 - s * 1.2; hipsY = 0.4;
         break;

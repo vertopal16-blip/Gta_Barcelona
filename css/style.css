@@ -117,3 +117,7 @@ canvas#game { display: block; width: 100vw; height: 100vh; }
   .bars { width: 150px; }
   #district { font-size: 24px; }
 }
+
+.vbar { width: 140px; height: 6px; margin: 4px 0 0 auto; background: rgba(0,0,0,0.6); border: 1px solid #000; }
+.vbar > div { height: 100%; width: 100%; background: #e8a020; }
+.vbar.nitro > div { background: #40c0ff; }

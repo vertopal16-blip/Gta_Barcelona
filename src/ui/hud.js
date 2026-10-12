@@ -171,6 +171,10 @@ export class HUD {
     if (v) {
       $('vehicle-name').textContent = v.T.name;
       $('speed').textContent = `${Math.round(v.kmh)} km/h`;
+      const nb = $('nitrobar');
+      if (nb) { nb.parentElement.style.display = v.upgrades?.nitro ? '' : 'none'; nb.style.width = `${(v.nitroT > 0 ? v.nitroT / 3 : v.nitro) * 100}%`; nb.style.background = v.nitro >= 0.99 ? '#40c0ff' : '#2a5a7a'; }
+      const hb = $('vhealthbar');
+      if (hb) hb.style.width = `${Math.max(0, v.health / v.maxHealth) * 100}%`;
     }
     // Barrio
     const d = g.world.districtId(pl.x, pl.z);
@@ -433,6 +437,8 @@ export class BigMap {
       M · Misión / contacto &nbsp; 🏠 Propiedad &nbsp; 💼 Negocio<br>
       🔫 Armería &nbsp; 🛒 Tienda &nbsp; 👕 Ropa &nbsp; 🔧 Taller &nbsp; 🚗 Concesionario<br>
       🏁 Carrera &nbsp; ⤴ Salto &nbsp; ✿ Panot (${found}/30)<br>
+      Ⓜ Metro &nbsp; 🚲 Bicing &nbsp; ⚓ Barcos &nbsp; 🚁 Helipuerto<br>
+      Territorios de bandas: <span style="color:#3fa860">Llops</span> · <span style="color:#d8402a">Corbs</span> · <span style="color:#3a7ad8">Banda del 22@</span> · <span style="color:#f2b33d">tuyos (${g.gangs.owned().length})</span><br>
       <br>Misiones completadas: ${g.missions.done.size}/${g.missionData.MISSIONS.length}<br>
       Dinero: ${formatMoney(g.economy.money)}`;
   }
@@ -472,6 +478,17 @@ export class BigMap {
     }
     ctx.restore();
     const toS = (x, zz) => { const [bx, by] = hud.w2m(x, zz); return [(bx - mx) * z + cv.width / 2, (by - my) * z + cv.height / 2]; };
+    // Territorios de bandas
+    if (g.gangs) {
+      for (const t of g.gangs.territories) {
+        const [sx, sy] = toS(t.x, t.z);
+        const col = g.gangs.gangColor(t.owner);
+        ctx.fillStyle = col + '30'; ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+        ctx.beginPath(); ctx.arc(sx, sy, t.r * hud.mapScale * z, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+        ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = col;
+        ctx.fillText(`${t.name} · ${g.gangs.gangName(t.owner)}`, sx, sy + t.r * hud.mapScale * z - 10);
+      }
+    }
     // Etiquetas de barrios y monumentos
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const labels = { eixample: [100, -380], gotic: [100, 260], raval: [-150, 280], born: [320, 330], barceloneta: [420, 600], gracia: [-20, -700], poblenou: [960, -200], sants: [-850, -280], montjuic: [-480, 270], zonafranca: [-1000, 780], lescorts: [-1000, -900], vilaolimpica: [740, 270], poblesec: [-380, 120] };
@@ -595,7 +612,11 @@ export class UI {
     const o = this.opts[i];
     if (!o || o.disabled) return;
     const r = o.action ? o.action() : 'close';
-    if (r === 'stay') {
+    if (r === 'reopen') {
+      const re = this.game.economy.reopen;
+      this.game.economy.reopen = null;
+      if (re) re(); else this.close();
+    } else if (r === 'stay') {
       // Refresca el menú si la acción lo modificó
       if (this._last) this._last();
       else this.renderMoney();
@@ -620,6 +641,7 @@ export class UI {
         { label: 'Continuar', action: () => { g.pauseOpen = false; return 'close'; } },
         { label: 'Controles', action: () => { this.controls(true); return 'keep'; } },
         { label: 'Estadísticas', action: () => { this.stats(); return 'keep'; } },
+        { label: 'Habilidades', action: () => { this.skillsMenu(); return 'keep'; } },
         { label: 'Ajustes', action: () => { this.settings(); return 'keep'; } },
         { label: 'Guardar partida (solo en tus propiedades)', disabled: true },
         { label: 'Salir al menú principal', action: () => { location.reload(); return 'keep'; } },
@@ -631,7 +653,7 @@ export class UI {
     const rows = [
       ['W A S D', 'Moverse / conducir'], ['Ratón', 'Cámara'], ['Shift', 'Esprintar'], ['Espacio', 'Saltar / freno de mano'],
       ['F', 'Entrar / salir / robar vehículo'], ['E', 'Interactuar (tiendas, contactos)'], ['Clic izq.', 'Atacar / disparar'], ['Clic der.', 'Apuntar (también desde el coche)'],
-      ['Q · 1-7', 'Cambiar de arma'], ['R', 'Recargar'], ['H', 'Claxon'], ['N', 'Cambiar emisora de radio'], ['G', 'Sirena (coche patrulla)'], ['L', 'Luces'],
+      ['Q · 1-7', 'Cambiar de arma'], ['R', 'Recargar'], ['H', 'Claxon'], ['N', 'Cambiar emisora de radio'], ['Shift (coche)', 'Nitro (si está instalado)'], ['Helicóptero', 'W/S avanzar · A/D girar · Espacio subir · C bajar'], ['G', 'Sirena (coche patrulla)'], ['L', 'Luces'],
       ['J', 'Trabajo: taxi / reparto / vigilante'], ['M', 'Mapa (clic para marcar destino GPS)'], ['T', 'Teléfono'], ['Rueda', 'Zoom de cámara'], ['Esc / P', 'Pausa'],
     ];
     this.menu({
@@ -647,9 +669,20 @@ export class UI {
       ['Panots encontrados', `${g.activities.panotFound.size} / 30`], ['Saltos únicos', `${g.activities.jumpsDone.size} / 6`], ['Coches robados', s.carsStolen], ['Coches vendidos', s.carsSold],
       ['Carreras de taxi', s.taxiFares], ['Repartos', s.deliveries], ['Carreras ganadas', s.racesWon], ['Atracos', s.robberies], ['Delincuentes detenidos', s.criminals],
       ['Buenas acciones', s.goodDeeds], ['Bajas', s.kills], ['Detenciones sufridas', s.busted], ['Veces hospitalizado', s.wasted],
+      ['Territorios conquistados', `${g.gangs.owned().length} / ${g.gangs.territories.length}`], ['Mejoras de taller', s.upgrades || 0], ['Viajes en metro', s.metroTrips || 0],
       ['Salto más largo', `${s.longestJump.toFixed(0)} m`], ['Distancia recorrida', `${(s.distance / 1000).toFixed(1)} km`], ['Tiempo jugado', `${Math.floor(s.time / 60)} min`],
     ];
     this.menu({ title: 'Estadísticas', html: `<table>${rows.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:right">${v}</td></tr>`).join('')}</table>`, options: [{ label: 'Volver', action: () => { this.pause(); return 'keep'; } }] });
+  }
+
+  skillsMenu() {
+    const g = this.game, S = g.skills;
+    const html = ['conduccion', 'punteria', 'resistencia'].map((k) => {
+      const lvl = S.level(k), pr = Math.round(S.progress(k) * 100);
+      const names = { conduccion: '🚗 Conducción', punteria: '🎯 Puntería', resistencia: '🏃 Resistencia' };
+      return `<p><b>${names[k]}</b> — nivel ${lvl}/5<br><span style="display:inline-block;width:260px;height:8px;background:#333;vertical-align:middle"><span style="display:block;height:100%;width:${pr}%;background:#f2b33d"></span></span> ${lvl >= 5 ? 'máximo' : pr + '%'}</p>`;
+    }).join('') + '<p style="opacity:.75">Mejoran con el uso: conduce rápido y derrapa, acierta disparos, corre, nada o pedalea en Bicing.</p>';
+    this.menu({ title: 'Habilidades', html, options: [{ label: 'Volver', action: () => { this.pause(); return 'keep'; } }] });
   }
 
   settings() {

@@ -404,6 +404,10 @@ export class VehicleManager {
       else if (v !== this.game.player.vehicle) { v.input.throttle = 0; v.input.brake = v.speed > 0.2 ? 0.6 : 0; v.input.steer = 0; v.input.handbrake = v.parked ? 1 : 0; }
       v.wet = this.game.world.sky.rain > 0.3;
       v.update(dt, d < 400 ? col : null);
+      if (v.nitroT > 0 && Math.random() < 0.9) {
+        const ex = v.x - v.fx * (v.T.len / 2 + 0.2), ez = v.z - v.fz * (v.T.len / 2 + 0.2);
+        for (let k = 0; k < 3; k++) this.game.combat.fx.emit(ex + (Math.random() - 0.5) * 0.4, v.y + 0.45, ez + (Math.random() - 0.5) * 0.4, -v.fx * 6, 0.3, -v.fz * 6, 0.15, 0.45, 0.4, 0.6, 1, 1, -1, 0);
+      }
       if (v.explodePending) {
         v.explodePending = false;
         this.game.combat.explode(v.x, v.y + 1, v.z, 9, v.lastAttacker, v);

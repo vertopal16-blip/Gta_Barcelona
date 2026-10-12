@@ -26,6 +26,8 @@ export class SaveSystem {
       jumps: [...g.activities.jumpsDone],
       clock: g.world.sky.time,
       stats: g.stats,
+      territories: g.gangs.serialize(),
+      skills: g.skills ? g.skills.serialize() : null,
       settings: g.settings,
     };
     try {
@@ -56,6 +58,8 @@ export class SaveSystem {
     g.activities.jumpsDone = new Set(data.jumps || []);
     g.world.sky.time = data.clock ?? 9;
     Object.assign(g.stats, data.stats || {});
+    g.gangs.load(data.territories);
+    if (g.skills && data.skills) g.skills.load(data.skills);
     Object.assign(g.settings, data.settings || {});
     return true;
   }

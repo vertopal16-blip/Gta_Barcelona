@@ -46,6 +46,8 @@ export class Activities {
     const g = this.game;
     this.setupDocks();
     this.setupMetro();
+    this.setupBicing();
+    this.setupHelipads();
     this.setupPanots();
     this.setupRamps();
     // Carreras
@@ -109,6 +111,81 @@ export class Activities {
         const v = g.vehicles.spawn(t, x, z, d.h);
         v.parked = true;
       });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Helipuertos
+  setupHelipads() {
+    const g = this.game;
+    const b = new GeoBuilder();
+    this.helipads = [[-1000, 760, 'Heliport de la Zona Franca'], [1150, -20, 'Helipuerto 22@'], [-700, 450, 'Helipuerto de Montjuïc']].map(([x, z, name]) => {
+      // Busca un hueco libre
+      let px = x, pz = z;
+      for (let k = 0; k < 60; k++) {
+        const tx = x + (k % 8 - 4) * 10, tz = z + Math.floor(k / 8) * 10;
+        if (!g.world.collision.resolveCircle(tx, tz, 8, g.world.groundHeight(tx, tz), 4).hit && !g.world.isWater(tx, tz) && g.world.roads.roadDistance(tx, tz) > 4) { px = tx; pz = tz; break; }
+      }
+      const y = g.world.groundHeight(px, pz) + 0.08;
+      const ring = [];
+      for (let i = 15; i >= 0; i--) { const a = (i / 16) * Math.PI * 2; ring.push(px + Math.cos(a) * 7, pz + Math.sin(a) * 7); }
+      b.polygonFlat(ring, y, 0x3a3d42);
+      b.box(px - 1.6, y, pz, 0.6, 0.03, 4, 0xf0f0f0); b.box(px + 1.6, y, pz, 0.6, 0.03, 4, 0xf0f0f0); b.box(px, y, pz, 2.6, 0.03, 0.6, 0xf0f0f0);
+      g.blips.add({ x: px, z: pz, icon: '🚁', label: name, kind: 'service' });
+      return { x: px, z: pz, name };
+    });
+    g.scene.add(b.toMesh(new THREE.MeshLambertMaterial({ vertexColors: true })));
+  }
+
+  updateHelipads() {
+    const g = this.game, pl = g.player;
+    for (const h of this.helipads) {
+      const d = dist2(pl.x, pl.z, h.x, h.z);
+      if (d > 200 || d < 25) continue;
+      if (g.vehicles.list.some((v) => v.isHeli && dist2(v.x, v.z, h.x, h.z) < 8)) continue;
+      const v = g.vehicles.spawn('heli', h.x, h.z, rand() * 6);
+      v.parked = true;
+      v.persistent = false;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Estaciones de Bicing
+  setupBicing() {
+    const g = this.game;
+    const spots = [[40, -60], [-200, -260], [260, -420], [-40, -560], [150, 130], [-160, 330], [420, 470], [700, 360], [900, -60], [-640, -120], [520, 60], [-60, 420]];
+    const b = new GeoBuilder();
+    this.bicing = spots.map(([x, z]) => {
+      const p = g.world.sidewalkPoint(x, z);
+      const e = p.edge;
+      const y = g.world.groundHeight(p.x, p.z);
+      const ang = e ? Math.atan2(e.dx, e.dz) : 0;
+      b.box(p.x, y, p.z, 0.25, 0.12, 6, 0x6a6a6a, ang); // base de anclajes
+      b.box(p.x + Math.cos(ang) * 0, y, p.z, 0.4, 1.6, 0.4, 0xd8202a, ang); // tótem
+      b.box(p.x, y + 1.6, p.z, 0.5, 0.35, 0.45, 0xf0f0f0, ang);
+      g.blips.add({ x: p.x, z: p.z, icon: '🚲', label: 'Bicing', kind: 'service', dim: true });
+      return { x: p.x, z: p.z, ang, y };
+    });
+    g.scene.add(b.toMesh(new THREE.MeshLambertMaterial({ vertexColors: true })));
+    this.bicingT = 0;
+  }
+
+  updateBicing(dt) {
+    const g = this.game, pl = g.player;
+    this.bicingT -= dt;
+    if (this.bicingT > 0) return;
+    this.bicingT = 4;
+    for (const st of this.bicing) {
+      const d = dist2(pl.x, pl.z, st.x, st.z);
+      if (d > 140 || d < 20) continue;
+      const have = g.vehicles.list.filter((v) => v.type === 'bicing' && dist2(v.x, v.z, st.x, st.z) < 5).length;
+      for (let i = have; i < 3; i++) {
+        const off = (i - 1) * 1.6;
+        const x = st.x + Math.sin(st.ang) * off, z = st.z + Math.cos(st.ang) * off;
+        if (g.vehicles.list.some((v) => dist2(v.x, v.z, x, z) < 1)) continue;
+        const v = g.vehicles.spawn('bicing', x + Math.cos(st.ang) * 0.6, z - Math.sin(st.ang) * 0.6, st.ang + Math.PI / 2);
+        v.parked = true;
+      }
     }
   }
 
@@ -729,6 +806,8 @@ export class Activities {
     this.checkJump(dt);
     this.updateEvents(dt);
     this.updateDocks(dt);
+    this.updateBicing(dt);
+    if (this.bicingT === 4) this.updateHelipads();
     // Estela de los barcos
     for (const v of g.vehicles.list) {
       if (!v.isBoat || v.speed < 3 || dist2(v.x, v.z, g.player.x, g.player.z) > 150) continue;

@@ -488,5 +488,5 @@ export function getMaterials() {
 /** Ajusta la iluminación nocturna de ventanas (0..1). */
 export function setNightFactor(f) {
   const m = getMaterials();
-  for (const mat of m.facadeMats) mat.emissiveIntensity = f * 0.9;
+  for (const mat of m.facadeMats) mat.emissiveIntensity = f * 0.55;
 }

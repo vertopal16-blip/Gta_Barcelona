@@ -9,7 +9,7 @@ await build({
   minify: true,
   target: 'es2020',
   outfile: 'game.bundle.js',
-  alias: { three: './lib/three.module.min.js' },
+  alias: { three: './lib/three.module.min.js', 'three/addons': './lib/addons' },
   legalComments: 'none',
 });
 console.log('game.bundle.js generado');

@@ -73,7 +73,7 @@ class AudioSystem {
 
   play(name, x, z) {
     if (!this.ctx) return;
-    const v = this._gainAt(x, z, name === 'explosion' ? 400 : name === 'gunshot' ? 250 : 80);
+    const v = this._gainAt(x, z, name === 'explosion' ? 400 : name === 'firework' ? 1500 : name === 'gunshot' ? 250 : 80);
     if (v <= 0.01) return;
     switch (name) {
       case 'gunshot': this._noiseBurst(0.25, 2500, 0.9 * v); this._tone(140, 0.12, 0.5 * v, 'square', 50); break;
@@ -93,6 +93,9 @@ class AudioSystem {
       case 'swing': this._noiseBurst(0.15, 1200, 0.25 * v, 0.5, 'bandpass'); break;
       case 'alarm': for (let i = 0; i < 6; i++) setTimeout(() => this.ctx && this._tone(i % 2 ? 900 : 700, 0.25, 0.2 * v, 'square'), i * 260); break;
       case 'splash': this._noiseBurst(0.7, 800, 0.6 * v, 0.5); break;
+      case 'nitro': this._noiseBurst(1.6, 700, 0.8 * v, 0.6); this._tone(90, 1.2, 0.4 * v, 'sawtooth', 220); break;
+      case 'thunder': this._noiseBurst(3.5, 180, 1.2 * v, 0.4); this._tone(45, 2.5, 0.6 * v, 'sine', 30); break;
+      case 'firework': this._noiseBurst(0.5, 1800, 0.5 * v); setTimeout(() => this.ctx && this._noiseBurst(1.2, 600, 0.7 * v, 0.5), 120); break;
       case 'door': this._tone(180, 0.1, 0.3 * v, 'square', 90); break;
     }
   }

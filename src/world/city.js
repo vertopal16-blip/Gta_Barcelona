@@ -817,7 +817,7 @@ export class City {
 
   /** Iluminación nocturna de farolas. */
   setNight(f) {
-    if (this.glowMat) { const k = 0.45 + f * 0.55; this.glowMat.color.setRGB(k, k, k); }
+    if (this.glowMat) { const k = 0.45 + f * 0.3; this.glowMat.color.setRGB(k, k, k); }
     if (this.lampMat) this.lampMat.color.setRGB(0.33 + f * 0.67, 0.33 + f * 0.6, 0.33 + f * 0.35);
   }
 }

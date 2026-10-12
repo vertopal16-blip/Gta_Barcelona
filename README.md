@@ -10,6 +10,9 @@ Videojuego de mundo abierto, acción y conducción ambientado en una **Barcelona
 | ![Conducción](docs/img/conduccion.png) | ![Noche en el Eixample](docs/img/noche.png) |
 | ![Passeig de Gràcia](docs/img/passeig-de-gracia.png) | ![Lancha en el Port Vell](docs/img/lancha.png) |
 | ![Tejados del Gòtic](docs/img/gotic-tejados.png) | ![La Rambla](docs/img/rambla.png) |
+| ![Noche con bloom](docs/img/noche-bloom.png) | ![Fuegos artificiales](docs/img/fuegos.png) |
+
+![Mapa con territorios](docs/img/mapa-territorios.png)
 
 ![Mapa](docs/img/mapa.png)
 
@@ -43,6 +46,8 @@ Si la pantalla de carga muestra un error, normalmente es que WebGL está desacti
 | `R` | Recargar |
 | `H` / `L` / `G` | Claxon / luces / sirena (coche patrulla) |
 | `N` | Cambiar emisora de radio |
+| `Shift` (en coche) | Nitro, si está instalado |
+| `Espacio` / `C` (helicóptero) | Subir / bajar |
 | `J` | Trabajos: taxi, reparto en moto, vigilante |
 | `M` | Mapa completo (clic = destino GPS) |
 | `T` | Teléfono (contactos, taxi rápido) |
@@ -59,6 +64,16 @@ Compatible con mando (sticks + gatillos).
 - Monumentos: Sagrada Família (con grúa y torre de Jesucristo iluminada), Arc de Triomf, Plaça de Catalunya, Mirador de Colom, Torre Glòries, Plaça d'Espanya y torres venecianas, Les Arenes, Palau Nacional con la Font Màgica animada, Castell de Montjuïc, Parc de la Ciutadella (cascada, lago, mamut, Parlament), Casa Batlló, La Pedrera, Catedral, Santa Maria del Mar, la Boqueria, MACBA, Gat del Raval, Mosaico de Miró, Park Güell, Hotel Arts y Torre Mapfre con el Peix d'Or, Hotel Vela, L'Estel Ferit, Port Vell con Maremagnum y cruceros, puerto de contenedores, **Telefèric del Port** en movimiento, Tibidabo y la torre de Collserola en el horizonte.
 - Playa con sombrillas y socorristas, palmeras, plátanos en las aceras, farolas, contenedores de reciclaje, quioscos, semáforos funcionales y aceras de **panot**.
 - Ciclo día/noche (24 min), sol mediterráneo, ventanas iluminadas, farolas con luz real, lluvia ocasional.
+
+**Novedades de la versión 0.3:**
+- **Postprocesado**: resplandor (bloom) en farolas, neones y escaparates, viñeta y gradación de color según la hora y el clima; la pantalla se tiñe de rojo con poca salud y parpadea en rojo y azul con la policía cerca.
+- **Taller de tuning**: motor, frenos y suspensión, blindaje (3 niveles cada uno), **nitro** (`Shift` al conducir) y pintura a elegir. Las mejoras se guardan con el coche en el garaje.
+- **Bicing**: 12 estaciones de bicicletas rojas y blancas (1 €), con animación de pedaleo.
+- **Helicóptero pilotable** en 3 helipuertos (`Espacio` subir, `C` bajar, `W`/`S` avanzar, `A`/`D` girar) y **paracaídas** automático si saltas en el aire.
+- **Bandas y territorios**: Els Llops del Port, Els Corbs del Raval y La Banda del 22@ controlan 6 zonas. Si atacas a una banda se desata una **guerra** de 3 oleadas; si ganas, el barrio es tuyo, tus hombres ocupan las esquinas y cobras protección cada día.
+- **Habilidades** que suben con el uso: conducción (agarre, giro), puntería (precisión, recarga) y resistencia (salud máxima, aguante).
+- **Controles policiales**: con 3 o más estrellas la policía corta la calle por delante.
+- **Tormentas** con relámpagos y truenos, y **fuegos artificiales** sobre la playa de la Barceloneta algunas noches a las 23:00.
 
 **Novedades de la versión 0.2:**
 - Personajes articulados (rodillas, codos, manos, caras, barbas, gafas, pelo variado) y animaciones nuevas (charlar, sentarse, bailar, tocar la guitarra).

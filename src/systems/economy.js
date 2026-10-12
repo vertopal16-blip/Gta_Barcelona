@@ -223,6 +223,28 @@ export class Economy {
         },
       },
     ];
+    if (!v.isBoat && !v.T.police) {
+      const u = v.upgrades;
+      const lvl = (n) => ['de serie', 'nivel 1', 'nivel 2', 'nivel 3'][n];
+      const ENG = [1500, 3500, 7000], BRK = [800, 1800, 3500], ARM = [2000, 4500, 9000];
+      const up = (key, prices, label) => ({
+        label: `${label}: ${lvl(u[key])}${u[key] < 3 ? ' → ' + lvl(u[key] + 1) : ' (máximo)'}`,
+        price: u[key] < 3 ? prices[u[key]] : null, disabled: u[key] >= 3,
+        action: () => { this.reopen = () => this.garageShop(s); if (this.spend(prices[u[key]], label)) { u[key]++; v.applyUpgrades(); audio.play('success'); g.stats.upgrades = (g.stats.upgrades || 0) + 1; } return 'reopen'; },
+      });
+      opts.push(up('engine', ENG, '🔧 Motor'), up('brakes', BRK, '🛑 Frenos y suspensión'), up('armor', ARM, '🛡 Blindaje'));
+      opts.push({ label: u.nitro ? '🔥 Nitro (instalado · Shift)' : '🔥 Nitro (Shift para activar)', price: u.nitro ? null : 5000, disabled: u.nitro,
+        action: () => { this.reopen = () => this.garageShop(s); if (this.spend(5000, 'Nitro')) { u.nitro = true; v.nitro = 1; audio.play('success'); } return 'reopen'; } });
+      const T = VEHICLE_TYPES[v.type];
+      const palette = [...new Set([...T.colors, 0x101010, 0xf4f4f4, 0xd81e1e, 0x1e5ad8, 0xf0c010, 0x30c060, 0xf08030, 0x8a3ab8, 0xc8c8c8])].slice(0, 10);
+      opts.push({ label: '🎨 Pintura personalizada', price: 300, action: () => {
+        g.ui.menu({ title: 'Elige un color', html: '', options: palette.map((c) => ({
+          label: `<span style="display:inline-block;width:18px;height:14px;background:#${c.toString(16).padStart(6, '0')};margin-right:8px;vertical-align:middle;border:1px solid #fff"></span>#${c.toString(16).padStart(6, '0')}`,
+          action: () => { if (this.spend(300, 'Pintura')) { v.color = c; v.root.removeFromParent(); v.buildModel(); g.scene.add(v.root); } this.garageShop(s); return 'keep'; },
+        })) });
+        return 'keep';
+      } });
+    }
     g.ui.menu({ title: s.name, text: '«Lo dejamos como nuevo. Sin preguntas.»', options: opts });
   }
 
@@ -260,7 +282,7 @@ export class Economy {
       { label: 'Guardar partida', action: () => { g.save.save(); g.hud.notify('Partida guardada.'); return 'close'; } },
       { label: 'Dormir hasta la mañana (recupera salud)', action: () => { g.sleep(p); return 'close'; } },
     ];
-    if (pl.vehicle && !pl.vehicle.T.police) opts.push({ label: `Guardar ${pl.vehicle.T.name} en el garaje`, action: () => { this.garage[p.id] = { type: pl.vehicle.type, color: pl.vehicle.color }; g.hud.notify('Vehículo guardado.'); g.save.save(); return 'close'; } });
+    if (pl.vehicle && !pl.vehicle.T.police) opts.push({ label: `Guardar ${pl.vehicle.T.name} en el garaje`, action: () => { this.garage[p.id] = { type: pl.vehicle.type, color: pl.vehicle.color, upgrades: { ...pl.vehicle.upgrades } }; g.hud.notify('Vehículo guardado.'); g.save.save(); return 'close'; } });
     if (stored && !pl.vehicle) opts.push({ label: `Sacar ${VEHICLE_TYPES[stored.type].name} del garaje`, action: () => { g.spawnStoredVehicle(p, stored); return 'close'; } });
     g.ui.menu({ title: p.name, text: 'Tu refugio. Aquí puedes guardar la partida.', options: opts });
   }

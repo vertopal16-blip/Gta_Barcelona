@@ -158,6 +158,13 @@ export class Sky {
       this.targetRain = Math.random() < 0.22 ? 0.6 + Math.random() * 0.4 : 0;
     }
     this.rain += (this.targetRain - this.rain) * Math.min(1, dt * 0.1);
+    // Tormenta: relámpagos
+    this.lightning = Math.max(0, (this.lightning || 0) - dt * 4);
+    if (this.rain > 0.75 && Math.random() < dt * 0.06) {
+      this.lightning = 1;
+      if (this.onThunder) setTimeout(() => this.onThunder(), 600 + Math.random() * 1800);
+    }
+    if (this.lightning > 0) { this.hemi.intensity += this.lightning * 3; this.uniforms.horizon.value.lerp(new THREE.Color(0xdde4ff), this.lightning * 0.6); }
     this.rainMesh.material.opacity = this.rain * 0.55;
     this.rainMesh.visible = this.rain > 0.02;
     if (this.rainMesh.visible) {

@@ -170,7 +170,7 @@ export class Player {
     const sprint = !locked && input.down('ShiftLeft') && ml > 0.1 && this.stamina > 1 && !this.aiming;
     let speed = this.swimming ? (sprint ? 3.4 : 2.2) : this.aiming ? 2.3 : sprint ? 7.6 : 4.5;
     if (this.game.encumbered) speed *= 0.8;
-    if (sprint) this.stamina = Math.max(0, this.stamina - dt * (this.swimming ? 14 : 16));
+    if (sprint) this.stamina = Math.max(0, this.stamina - dt * (this.swimming ? 14 : 16) * this.game.skills.staminaMul);
     else this.stamina = Math.min(100, this.stamina + dt * 12);
     const tvx = mx * speed, tvz = mz * speed;
     const accel = this.onGround || this.swimming ? 12 : 2.5;
@@ -183,6 +183,10 @@ export class Player {
     if (!locked && input.hit('Space') && this.onGround && !this.swimming) {
       this.vy = 5.4;
       this.onGround = false;
+    }
+    if (this.parachute) {
+      this.vy = Math.max(this.vy, -4.5);
+      if (this.chute) this.chute.position.set(this.x, this.y + 5, this.z);
     }
     // Integración
     this.x += this.vx * dt;
@@ -197,6 +201,7 @@ export class Player {
     this.y += this.vy * dt;
     if (this.y <= floor) {
       if (!wasGround && this.vy < -13) this.damage((-this.vy - 13) * 9, null, 'fall');
+      if (this.parachute) { this.parachute = false; if (this.chute) this.chute.visible = false; }
       this.y = floor; this.vy = 0; this.onGround = true;
     } else if (this.y > floor + 0.25) this.onGround = false;
     else if (this.vy <= 0) { this.y = floor; this.vy = 0; this.onGround = true; }
@@ -308,7 +313,7 @@ export class Player {
     if (!W.ranged || this.reloadT > 0) return;
     const w = this.weapons[this.current];
     if (w.ammo <= 0 || w.clip >= W.mag) return;
-    this.reloadT = W.id === 'shotgun' ? 1.8 : 1.3;
+    this.reloadT = (W.id === 'shotgun' ? 1.8 : 1.3) * this.game.skills.reloadMul;
     audio.play('reload');
   }
 
@@ -364,7 +369,7 @@ export class Player {
       v.locked = false;
       return;
     }
-    if (v.parked && !v.playerOwned && !v.mission) g.reportCrime('carTheft', v.x, v.z, null);
+    if (v.parked && !v.playerOwned && !v.mission && !v.T.pedal && !v.isBoat) g.reportCrime('carTheft', v.x, v.z, null);
     this.enterT = 0.35;
     this.enterTarget = v;
   }
@@ -374,6 +379,12 @@ export class Player {
     g.hud.prompt('');
     this.enterTarget = null;
     if (v.driver && v.driver.isPed && v.driver.alive) { g.peds.ejectFrom(v, v.driver, 'flee'); }
+    if (v.T.pedal && !v.rented && !v.playerOwned) {
+      if (g.economy.money < 1) { g.hud.notify('Necesitas 1 € para coger un Bicing.'); return; }
+      g.economy.add(-1, '');
+      v.rented = true;
+      g.hud.notify('🚲 <b>Bicing</b>: 1 €. Pedalear también ejercita la resistencia.', 3);
+    }
     this.vehicle = v;
     v.driver = this;
     v.ai = null;
@@ -407,7 +418,19 @@ export class Player {
     this.x = d.x; this.z = d.z;
     this.y = Math.max(W.groundHeight(d.x, d.z), v.y);
     this.vx = v.vx * 0.5; this.vz = v.vz * 0.5;
-    if (Math.abs(v.vF) > 8) { this.vy = 2; this.onGround = false; this.damage(Math.abs(v.vF) * 0.8, null, 'fall'); }
+    if (v.isHeli && v.y - W.groundHeight(v.x, v.z) > 12) {
+      // Salto en paracaídas
+      this.parachute = true;
+      this.vy = 0; this.onGround = false;
+      if (!this.chute) {
+        const geo = new THREE.SphereGeometry(3.2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.6);
+        this.chute = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xd83a2a, side: THREE.DoubleSide }));
+        this.chute.scale.set(1, 0.6, 0.8);
+        g.scene.add(this.chute);
+      }
+      this.chute.visible = true;
+      g.hud.notify('🪂 ¡Paracaídas abierto!', 2);
+    } else if (Math.abs(v.vF) > 8 && !v.isHeli) { this.vy = 2; this.onGround = false; this.damage(Math.abs(v.vF) * 0.8, null, 'fall'); }
     this.heading = v.heading + Math.PI / 2;
     v.input = { throttle: 0, brake: 0, steer: 0, handbrake: 1 };
     this.model.root.visible = true;
@@ -428,8 +451,15 @@ export class Player {
     v.input.throttle = throttle;
     v.input.brake = brake;
     v.input.steer = ax.x;
-    v.input.handbrake = !locked && input.down('Space') ? 1 : 0;
+    v.skillMul = g.skills.driveMul;
+    v.input.handbrake = !locked && input.down('Space') && !v.isHeli ? 1 : 0;
+    if (v.isHeli) v.input.lift = locked ? 0 : (input.down('Space') ? 1 : 0) - (input.down('KeyC') ? 1 : 0);
     if (!locked && input.hit('KeyH')) audio.play('horn', v.x, v.z);
+    if (!locked && (input.hit('ShiftLeft') || input.hit('ShiftRight')) && v.useNitro()) {
+      audio.play('nitro', v.x, v.z);
+      g.camera.shake(0.25, 0.5);
+      g.hud.notify('🔥 ¡NITRO!', 1.5);
+    }
     if (!locked && input.hit('KeyL')) v.lightsOn = !v.lightsOn;
     if (v.T.police && !locked && input.hit('KeyG')) v.siren = !v.siren;
     this.x = v.x; this.y = v.y; this.z = v.z;
@@ -453,9 +483,9 @@ export class Player {
         }
       }
     } else g.hud.crosshair(false);
-    audio.setEngine(true, clamp(Math.abs(v.vF) / v.T.maxSpeed, 0, 1) + throttle * 0.15, throttle, v.isBike ? 'bike' : v.T.heavy ? 'heavy' : 'car');
+    audio.setEngine(!v.T.pedal, clamp(Math.abs(v.vF) / v.T.maxSpeed, 0, 1) + throttle * 0.15, throttle, v.isBike ? 'bike' : v.T.heavy ? 'heavy' : 'car');
     if (v.isBike) {
-      this.model.animate(dt, 'ride', 0);
+      this.model.animate(dt, v.T.pedal ? 'pedal' : 'ride', Math.abs(v.vF));
     }
     if (v.destroyed && !this.dead) {
       // Salir del coche en llamas

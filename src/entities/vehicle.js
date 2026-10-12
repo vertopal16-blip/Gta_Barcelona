@@ -28,6 +28,8 @@ export const VEHICLE_TYPES = {
   dinghy: { name: 'Zodiac Tramuntana', kind: 'boat', len: 4.2, wid: 1.9, hei: 1.0, mass: 500, maxSpeed: 22, accel: 6, brake: 5, grip: 2.6, steer: 1.0, value: 900,
     colors: [0x3a3a3a, 0xe86a20, 0x2a5a8a] },
   policeboat: { name: 'Patrullera', kind: 'boat', len: 7.5, wid: 2.6, hei: 2.0, mass: 2000, maxSpeed: 34, accel: 7.5, brake: 6, grip: 2.4, steer: 0.85, value: 0, colors: [0xf4f4f4], police: true },
+  heli: { name: 'Helicòpter Mistral', kind: 'heli', len: 9, wid: 2.4, hei: 2.6, mass: 2200, maxSpeed: 45, accel: 12, brake: 8, grip: 3, steer: 1.2, value: 0, colors: [0xf0f0f0, 0xd83a3a, 0x1f3a8e, 0x2a2a2a] },
+  bicing: { name: 'Bicing', kind: 'bike', pedal: true, len: 1.75, wid: 0.6, hei: 1.1, mass: 20, maxSpeed: 9.5, accel: 3.2, brake: 7, grip: 9, steer: 0.8, value: 50, colors: [0xd8202a] },
   scooter: { name: 'Llevant 125', kind: 'bike', len: 1.9, wid: 0.75, hei: 1.2, mass: 140, maxSpeed: 27, accel: 8, brake: 13, grip: 11, steer: 0.75, value: 350,
     colors: [0xf0f0f0, 0xd83a3a, 0x3a3a3a, 0x60c0e0, 0xf0c030] },
   moto: { name: 'Ponent 750', kind: 'bike', len: 2.1, wid: 0.8, hei: 1.25, mass: 220, maxSpeed: 62, accel: 15, brake: 18, grip: 13, steer: 0.7, value: 2800,
@@ -50,7 +52,15 @@ function buildBody(type, color) {
   const L = T.len, W = T.wid, H = T.hei;
   const glass = 0x1d2630;
   const trim = 0x202020;
-  if (T.kind === 'boat') {
+  if (T.kind === 'heli') {
+    b.box(0, 0.5, 0.6, 2.2, 1.7, 3.2, color); // fuselaje
+    b.box(0, 0.75, 2.25, 1.9, 1.3, 0.6, glass); // cabina
+    b.box(0, 1.2, -2.6, 0.45, 0.45, 4.2, color); // cola
+    b.box(0, 1.4, -4.6, 0.12, 1.3, 0.8, color); // deriva
+    b.box(0, 2.2, 0.5, 0.5, 0.5, 0.8, 0x2a2a2a); // eje del rotor
+    for (const sx of [1, -1]) { b.box(sx * 0.9, 0, 0.5, 0.1, 0.1, 3.4, 0x2a2a2a); b.box(sx * 0.9, 0.05, -0.3, 0.06, 0.45, 0.06, 0x2a2a2a); b.box(sx * 0.9, 0.05, 1.3, 0.06, 0.45, 0.06, 0x2a2a2a); }
+    b.box(0, 0.95, 0.6, 2.22, 0.15, 3.0, 0xf2b33d); // franja
+  } else if (T.kind === 'boat') {
     // Casco en cuña + cabina
     const hz = L / 2, hw = W / 2;
     const hull = color, deck = 0xd8cfb8;
@@ -74,6 +84,16 @@ function buildBody(type, color) {
       b.box(0, 0.9, -0.6, 0.6, 0.4, 0.6, 0x2a2a2a);
     }
     b.box(0, 0.4, -hz - 0.25, 0.4, 0.9, 0.45, 0x222222); // motor fueraborda
+  } else if (type === 'bicing') {
+    // Bicicleta pública roja y blanca
+    b.box(0, 0.62, 0.05, 0.06, 0.06, 1.0, 0xd8202a, 0); // barra superior
+    b.box(0, 0.35, 0.2, 0.06, 0.06, 0.9, 0xf0f0f0); // barra inferior
+    b.box(0, 0.35, -0.25, 0.06, 0.55, 0.06, 0xd8202a); // tubo sillín
+    b.box(0, 0.92, -0.28, 0.16, 0.06, 0.26, 0x1a1a1a); // sillín
+    b.box(0, 0.45, 0.55, 0.06, 0.65, 0.06, 0xf0f0f0); // horquilla
+    b.box(0, 1.08, 0.55, 0.6, 0.04, 0.04, 0x2a2a2a); // manillar
+    b.box(0, 0.85, 0.75, 0.32, 0.22, 0.26, 0x2a2a2a); // cesta
+    b.box(0, 0.32, -0.62, 0.14, 0.18, 0.08, 0xd8202a); // guardabarros
   } else if (T.kind === 'bike') {
     b.box(0, 0.35, 0, 0.25, 0.4, L * 0.75, color);
     b.box(0, 0.75, -0.25, 0.32, 0.12, 0.7, 0x1a1a1a); // asiento
@@ -193,7 +213,11 @@ export class Vehicle {
   constructor(type, x, z, heading = 0, opts = {}) {
     this.id = nextId++;
     this.type = type;
-    this.T = VEHICLE_TYPES[type];
+    this.T = { ...VEHICLE_TYPES[type] };
+    this.base = VEHICLE_TYPES[type];
+    this.upgrades = { engine: 0, brakes: 0, armor: 0, nitro: false, ...(opts.upgrades || {}) };
+    this.nitro = 1;
+    this.nitroT = 0;
     this.color = opts.color ?? rand.pick(this.T.colors);
     this.x = x; this.z = z;
     this.y = groundHeight(x, z);
@@ -222,6 +246,7 @@ export class Vehicle {
     this.radius = this.T.wid / 2;
     this.isBike = this.T.kind === 'bike';
     this.isBoat = this.T.kind === 'boat';
+    this.isHeli = this.T.kind === 'heli';
     this.alarm = false;
     this.buildModel();
   }
@@ -270,7 +295,16 @@ export class Vehicle {
       this.bodyGroup.add(pivot);
       this.wheels.push({ pivot, w, front });
     };
-    if (this.isBoat) {
+    if (this.isHeli) {
+      this.rotor = new THREE.Mesh(new THREE.BoxGeometry(10, 0.06, 0.35), wheelMat);
+      this.rotor.position.set(0, 2.5, 0.5);
+      const r2 = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.06, 10), wheelMat);
+      this.rotor.add(r2);
+      this.tailRotor = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.4, 0.2), wheelMat);
+      this.tailRotor.position.set(0.18, 1.4, -4.6);
+      this.bodyGroup.add(this.rotor, this.tailRotor);
+      this.rotorSpeed = 0;
+    } else if (this.isBoat) {
       // sin ruedas
     } else if (this.isBike) {
       addWheel(0, T.len / 2 - 0.3, true, bikeWheelGeo, 0.32);
@@ -281,7 +315,16 @@ export class Vehicle {
       addWheel(wx, -wz, false); addWheel(-wx, -wz, false);
       if (T.len > 7) { addWheel(wx, -wz + 1.4, false); addWheel(-wx, -wz + 1.4, false); }
     }
+    this.applyUpgrades();
     this.syncModel(0);
+  }
+
+  /** Activa el nitro si está cargado. */
+  useNitro() {
+    if (!this.upgrades.nitro || this.nitro < 0.99 || this.destroyed) return false;
+    this.nitro = 0;
+    this.nitroT = 3;
+    return true;
   }
 
   get speed() { return Math.hypot(this.vx, this.vz); }
@@ -312,6 +355,7 @@ export class Vehicle {
 
   update(dt, collision) {
     if (this.isBoat) return this.updateBoat(dt, collision);
+    if (this.isHeli) return this.updateHeli(dt, collision);
     const T = this.T;
     if (this.destroyed) {
       this.input.throttle = 0; this.input.brake = 1; this.input.steer = 0;
@@ -330,10 +374,14 @@ export class Vehicle {
     if (grounded) {
       let a = 0;
       const engineOn = !this.destroyed && this.health > 0;
+      const boosting = this.nitroT > 0;
+      const maxS = T.maxSpeed * (boosting ? 1.3 : 1);
       if (engineOn && inp.throttle > 0) {
         if (vF < -0.5) a += T.brake * inp.throttle;
-        else a += T.accel * inp.throttle * Math.max(0.05, 1 - (vF / T.maxSpeed) ** 2);
+        else a += T.accel * (boosting ? 2.2 : 1) * inp.throttle * Math.max(0.05, 1 - (vF / maxS) ** 2);
       }
+      if (boosting) { this.nitroT -= dt; if (this.nitroT <= 0) this.nitroT = 0; }
+      else if (this.upgrades.nitro) this.nitro = Math.min(1, this.nitro + dt / 14);
       if (inp.brake > 0) {
         if (vF > 0.5) a -= T.brake * inp.brake;
         else if (engineOn) a -= T.accel * 0.6 * inp.brake * Math.max(0, 1 + vF / (T.maxSpeed * 0.3));
@@ -348,13 +396,13 @@ export class Vehicle {
       vF += a * dt;
       if (Math.sign(prev) !== Math.sign(vF) && inp.throttle === 0 && Math.abs(vF) < 0.6 && !(inp.brake > 0 && prev <= 0.5)) vF = 0;
       // Agarre lateral
-      const gripMax = (inp.handbrake ? T.grip * 0.28 : T.grip) * (this.wet ? 0.8 : 1);
+      const gripMax = (inp.handbrake ? T.grip * 0.28 : T.grip) * (this.wet ? 0.8 : 1) * (this.driver && this.driver.isPlayer ? this.skillMul || 1 : 1);
       const dv = clamp(-vS, -gripMax * dt, gripMax * dt);
       vS += dv;
       this.drifting = Math.abs(vS) > 2.5;
       // Giro
       const wheelBase = T.len * 0.6;
-      const steerAng = T.steer * this.steer / (1 + Math.abs(vF) / 28);
+      const steerAng = T.steer * this.steer / (1 + Math.abs(vF) / (28 * (this.driver && this.driver.isPlayer ? this.skillMul || 1 : 1)));
       let targetYaw = -(vF / wheelBase) * Math.tan(steerAng);
       if (inp.handbrake && Math.abs(vF) > 4) targetYaw *= 1.6;
       this.yawRate = damp(this.yawRate, targetYaw, 10, dt);
@@ -434,6 +482,54 @@ export class Vehicle {
     this.syncModel(dt);
   }
 
+  /** Vuelo simplificado de helicóptero. */
+  updateHeli(dt, collision) {
+    const T = this.T, inp = this.input;
+    const piloted = !!this.driver && !this.destroyed;
+    this.rotorSpeed = damp(this.rotorSpeed || 0, piloted ? 1 : 0, piloted ? 0.8 : 0.3, dt);
+    const power = this.rotorSpeed;
+    const fx = this.fx, fz = this.fz;
+    const gh = groundHeight(this.x, this.z);
+    // Elevación
+    const lift = piloted ? (inp.lift || 0) : 0;
+    this.vy += (lift * 9 * power - (power > 0.6 ? 0 : 9.8 * (1 - power))) * dt;
+    if (power > 0.6 && !lift) this.vy = damp(this.vy, 0, 2.5, dt);
+    this.vy = clamp(this.vy, -18, 10);
+    // Avance y giro
+    const fwd = piloted && power > 0.6 && this.y > gh + 0.8 ? inp.throttle - inp.brake : 0;
+    this.vx += fx * fwd * T.accel * dt;
+    this.vz += fz * fwd * T.accel * dt;
+    const drag = Math.exp(-dt * 0.6);
+    this.vx *= drag; this.vz *= drag;
+    const sp = Math.hypot(this.vx, this.vz);
+    if (sp > T.maxSpeed) { this.vx *= T.maxSpeed / sp; this.vz *= T.maxSpeed / sp; }
+    this.yawRate = damp(this.yawRate, -(inp.steer || 0) * T.steer * power, 4, dt);
+    this.heading = wrapAngle(this.heading + this.yawRate * dt);
+    this.x += this.vx * dt; this.z += this.vz * dt; this.y += this.vy * dt;
+    this.x = clamp(this.x, MAP.minX - 200, MAP.maxX + 200);
+    this.z = clamp(this.z, MAP.minZ - 200, MAP.maxZ + 600);
+    this.y = Math.min(this.y, 320);
+    const floor = Math.max(gh, SEA_LEVEL);
+    if (this.y <= floor) {
+      if (this.vy < -7) this.damage((-this.vy - 7) * 80, null, 'crash');
+      this.y = floor; this.vy = Math.max(0, this.vy);
+      this.vx *= 0.8; this.vz *= 0.8;
+      this.onGround = true;
+      if (gh < SEA_LEVEL - 0.5 && !this.destroyed) { this.sinkT += dt; }
+    } else this.onGround = false;
+    if (collision) {
+      const before = Math.hypot(this.vx, this.vz);
+      this.collideWorld(collision);
+      if (before > 8 && Math.hypot(this.vx, this.vz) < before * 0.7) this.damage(before * 25, null, 'crash');
+    }
+    this.vF = this.vx * fx + this.vz * fz;
+    this.pitch = damp(this.pitch, -fwd * 0.22 + (this.onGround ? 0 : 0), 3, dt);
+    this.roll = damp(this.roll, (inp.steer || 0) * 0.15 * power, 3, dt);
+    if (this.rotor) { this.rotor.rotation.y += dt * 30 * power; this.tailRotor.rotation.x += dt * 40 * power; }
+    if (this.destroyed) { this.vy -= 9.8 * dt; }
+    this.syncModel(dt);
+  }
+
   /** Física de lancha: deriva, cabeceo, varado en la costa. */
   updateBoat(dt, collision) {
     const T = this.T, inp = this.input;
@@ -507,8 +603,18 @@ export class Vehicle {
     }
   }
 
+  /** Aplica las mejoras del taller a las estadísticas. */
+  applyUpgrades() {
+    const u = this.upgrades, B = this.base;
+    this.T.accel = B.accel * (1 + 0.16 * u.engine);
+    this.T.maxSpeed = B.maxSpeed * (1 + 0.08 * u.engine);
+    this.T.brake = B.brake * (1 + 0.22 * u.brakes);
+    this.T.grip = B.grip * (1 + 0.06 * u.brakes);
+  }
+
   damage(amount, attacker = null, cause = 'misc') {
     if (this.destroyed) return;
+    amount *= 1 - 0.2 * (this.upgrades?.armor || 0);
     this.health -= amount;
     this.lastAttacker = attacker || this.lastAttacker;
     if (this.onDamage) this.onDamage(amount, attacker, cause);

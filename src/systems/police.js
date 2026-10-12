@@ -184,6 +184,12 @@ export class Police {
       this.spawnUnit();
     }
     if (this.level >= 4 && !this.heli) this.spawnHeli();
+    // Controles de carretera
+    this.blockT = (this.blockT ?? 20) - dt;
+    if (this.level >= 3 && this.blockT <= 0 && pl.vehicle && pl.vehicle.speed > 10 && !pl.vehicle.isBoat && !pl.vehicle.isHeli) {
+      this.blockT = 45;
+      this.spawnRoadblock();
+    }
     // Patrullas cercanas que no son nuestras se unen
     for (const v of g.vehicles.list) {
       if (activeCars >= wantCars) break;
@@ -312,6 +318,29 @@ export class Police {
     ped.inScene = false;
     if (car.driver === ped) this.recruit(car);
     if (!this.units.includes(car)) this.units.push(car);
+  }
+
+  /** Dos patrullas cruzadas en la calzada por delante del jugador. */
+  spawnRoadblock() {
+    const g = this.game, pl = g.player, v = pl.vehicle;
+    const ax = v.x + v.vx / v.speed * 120, az = v.z + v.vz / v.speed * 120;
+    const ne = g.world.roads.nearestEdge(ax, az, 60, (e) => !e.noTraffic && e.len > 30 && e.type !== 'narrow');
+    if (!ne || g.isVisible(ne.x, 1, ne.z, 3) && dist2(ne.x, ne.z, pl.x, pl.z) < 90) return;
+    const e = ne.edge;
+    const px = -e.dz, pz = e.dx;
+    const across = Math.atan2(px, pz);
+    for (const side of [-1, 1]) {
+      const off = e.w / 4 * side;
+      const x = ne.x + px * off, z = ne.z + pz * off;
+      const car = g.vehicles.spawn('police', x, z, across + (side > 0 ? 0 : Math.PI));
+      car.police = true; car.siren = true; car.parked = true;
+      car.persistent = true;
+      setTimeout(() => { car.persistent = false; }, 90000);
+      const o = g.peds.create('police', x + e.dx * 4, z + e.dz * 4, { lookKind: 'police', weapon: this.level >= 4 ? 'smg' : 'pistol', ammo: 200 });
+      o.persistent = true;
+      this.officers.push(o);
+    }
+    g.hud.notify('🚧 ¡Control policial más adelante!');
   }
 
   bust() {
