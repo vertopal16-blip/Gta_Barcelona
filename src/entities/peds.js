@@ -149,6 +149,8 @@ export class PedManager {
   setFlee(ped, fx, fz, t = 10) {
     if (!ped.alive || ped.role === 'police' || ped.role === 'gang' || ped.task?.type === 'attack' || ped.persistent) return;
     ped.task = { type: 'flee', fx, fz, t };
+    ped.pose = null;
+    if (ped.onScare) ped.onScare();
     ped.state = 'run';
   }
 
@@ -369,6 +371,7 @@ export class PedManager {
       if (ped.state === 'cower') anim = 'cower';
       if (ped.state === 'surrender') anim = 'surrender';
       if (ped.state === 'swim') anim = 'swim';
+      if (ped.pose && !ped.task && !ped.controller && spd < 0.4) anim = ped.pose === 'statue' ? 'statue' : ped.pose;
       const aiming = ped.task && ped.task.type === 'attack' && ped.weapon && ped.weapon !== 'bat' && ped.weapon !== 'knife' && ped.aimingNow;
       ped.model.animate(dt, anim, spd, { aim: aiming, phone: ped.phone && anim === 'walk' && !ped.task, carry: false });
     }
@@ -427,6 +430,9 @@ export class PedManager {
           break;
         }
       }
+    } else if (ped.pose) {
+      // Sentado, charlando o actuando: quieto
+      if (ped.faceTo) ped.heading = dampAngle(ped.heading, Math.atan2(ped.faceTo.x - ped.x, ped.faceTo.z - ped.z), 3, dt);
     } else if (ped.wanderZone) {
       // Paseo libre en playas, parques y plazas
       if (!ped.wanderTarget || dist2(ped.x, ped.z, ped.wanderTarget.x, ped.wanderTarget.z) < 1) {
@@ -585,7 +591,7 @@ export class PedManager {
     }
     ped.x += ped.vx * dt;
     ped.z += ped.vz * dt;
-    const gh = W.groundHeight(ped.x, ped.z);
+    const gh = W.groundHeight(ped.x, ped.z) + (ped.pose ? ped.baseOffset || 0 : 0);
     if (ped.y > gh + 0.05 || ped.vy > 0) {
       ped.vy -= 18 * dt;
       ped.y += ped.vy * dt;

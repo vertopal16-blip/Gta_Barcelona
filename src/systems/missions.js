@@ -23,6 +23,9 @@ export const MISSIONS = [
   { id: 'ines1', giver: 'ines', title: 'Obres a Poblenou', reward: 3000, requires: ['quim1'], desc: 'Inés quiere frenar las obras de un competidor en Poblenou.' },
   { id: 'ines2', giver: 'ines', title: 'Vista al mar', reward: 3500, requires: ['ines1'], desc: 'Lleva a un inversor del Hotel Arts al Castell de Montjuïc. Con cuidado.' },
   { id: 'llop1', giver: 'dani', title: 'Contenidors', reward: 4500, requires: ['marta3', 'quim1'], desc: 'Recupera un paquete de Els Llops en los muelles de la Zona Franca.' },
+  { id: 'marta4', giver: 'marta', title: 'Rescat a Poblenou', reward: 2500, requires: ['marta3'], desc: 'Han secuestrado a Pau, el sobrino de Marta, para cobrarle una deuda.' },
+  { id: 'quim3', giver: 'quim', title: 'Ral·li de Montjuïc', reward: 3000, requires: ['quim2'], desc: 'Un piloto rival desafía a Quim: dos vueltas al circuito de Montjuïc.' },
+  { id: 'dani2', giver: 'dani', title: 'Contraban nocturn', reward: 5000, requires: ['llop1'], desc: 'Recoge un cargamento en alta mar con una lancha y llévalo a la Zona Franca.' },
   { id: 'final', giver: 'dani', title: 'Nit a Montjuïc', reward: 10000, requires: ['ines2', 'llop1'], desc: 'Inés y los Llops han hecho un trato a tus espaldas. Se reúnen en el castillo.' },
 ];
 
@@ -292,6 +295,116 @@ const parkPoint = (g, x, z) => {
 };
 
 const SCRIPTS = {
+  async marta4(ctx, g) {
+    const pl = g.player;
+    await ctx.say('Marta', '¡Se han llevado a Pau, mi sobrino! Unos usureros de Poblenou. Dicen que si no pago, no lo vuelvo a ver.');
+    await ctx.say('Marta', 'Lo tienen en una nave abandonada cerca de la Rambla del Poblenou. Tráemelo de vuelta. Por favor.');
+    const W = g.world.sidewalkPoint(1100, -200);
+    await ctx.goTo(W.x, W.z, { text: 'Ve a la <b>nave abandonada</b> de Poblenou.', radius: 35, visible: false, label: 'Nave' });
+    const ws = ['pistol', 'bat', 'smg', 'pistol', 'shotgun'];
+    const enemies = ws.map((w, i) => ctx.enemy(W.x + Math.cos(i * 1.3) * 9, W.z + Math.sin(i * 1.3) * 9, w, { aggro: 40 }));
+    const pau = ctx.spawnPed('civil', W.x + 2, W.z + 2, { look: { skin: 0xe0ac85, hair: 0x3b2516, shirt: 0xf0f0f0, pants: 0x3a5a8a, shoes: 0xf0f0f0, hairStyle: 0, height: 0.9, build: 0.9 } });
+    pau.invulnerable = false;
+    pau.health = pau.maxHealth = 200;
+    pau.pose = 'cower';
+    ctx.failIf(() => !pau.alive, 'Pau ha muerto.');
+    ctx.objective('Libera a <b>Pau</b>: acaba con los secuestradores.');
+    await ctx.until(() => enemies.every((e) => !e.alive || (e.state === 'down' && e.health < 40)));
+    ctx.objective('Desata a <b>Pau</b>.');
+    const pb = ctx.blip(pau.x, pau.z, '★', 'Pau', '#40e0ff');
+    await ctx.until(() => dist2(pl.x, pl.z, pau.x, pau.z) < 2.5);
+    g.blips.remove(pb);
+    pau.pose = null;
+    pau.controller = null;
+    pau.task = { type: 'follow', target: pl, dist: 2 };
+    pau.say('¡Gràcies! ¡Sácame de aquí!', 3);
+    ctx.objective('Consigue un <b>vehículo</b> y lleva a Pau al <b>Bar La Gavina</b>.');
+    await ctx.until(() => pl.vehicle && !pl.vehicle.isBike && dist2(pl.vehicle.x, pl.vehicle.z, pau.x, pau.z) < 7);
+    const car = pl.vehicle;
+    pau.task = null;
+    pau.state = 'inVehicle'; pau.vehicle = car; car.passengers.push(pau); pau.model.root.removeFromParent(); pau.inScene = false;
+    ctx.failIf(() => pl.vehicle !== car && dist2(pl.x, pl.z, car.x, car.z) > 30, 'Has abandonado a Pau.');
+    const M = CONTACTS.marta;
+    await ctx.goTo(M.x, M.z, { text: 'Lleva a Pau al <b>Bar La Gavina</b>.', radius: 7, label: 'La Gavina' });
+    g.peds.ejectFrom(car, pau, 'none');
+    await ctx.say('Marta', '¡Pau! Ay, Senyor… No sé cómo agradecértelo. Esta casa es tu casa, para siempre.');
+  },
+
+  async quim3(ctx, g) {
+    const pl = g.player;
+    await ctx.say('Quim', 'Un tal "Rata" va diciendo que es el más rápido de Montjuïc. Le he apostado cinco mil a que no.');
+    await ctx.say('Quim', 'Te dejo mi Garbí GT. Dos vueltas al circuito. Si ganas, el coche es tuyo.');
+    const ring = [];
+    for (let i = 0; i <= 20; i++) {
+      const a = -2.05 - (i / 20) * Math.PI * 2;
+      const p = roadPoint(g, -480 + Math.cos(a) * 238, 330 + Math.sin(a) * 238);
+      ring.push({ x: p.x, z: p.z });
+    }
+    const s0 = ring[0], s1 = ring[1];
+    const h = Math.atan2(s1.x - s0.x, s1.z - s0.z);
+    const mine = ctx.spawnVehicle('sports', s0.x + Math.cos(h) * 2.5, s0.z - Math.sin(h) * 2.5, h, { color: 0xf0c010, keep: true });
+    const rival = ctx.spawnVehicle('sports', s0.x - Math.cos(h) * 2.5, s0.z + Math.sin(h) * 2.5, h, { color: 0x101010 });
+    rival.driver = g.peds.createDriver(rival);
+    ctx.blip(mine.x, mine.z, '🚗', 'Tu coche');
+    await ctx.goTo(s0.x - Math.sin(h) * 8, s0.z - Math.cos(h) * 8, { text: 'Ve a la <b>línea de salida</b> en Montjuïc.', radius: 25, visible: false, label: 'Salida' });
+    ctx.objective('Sube al <b>Garbí GT</b> amarillo.');
+    await ctx.until(() => pl.vehicle === mine);
+    pl.controlsLocked = true;
+    for (const n of ['3', '2', '1']) { g.hud.big(n, '', true, 0.8); audio.play('checkpoint'); await ctx.wait(1); }
+    g.hud.big('¡YA!', '', true, 0.8);
+    pl.controlsLocked = false;
+    const lap = ring.slice(1);
+    const route = [...lap, ...lap];
+    let rivalDone = false;
+    rival.ai = new PathDriver(rival, g, route, { speed: 30, reach: 12, aggressive: true, onDone: () => { rivalDone = true; } });
+    ctx.failIf(() => rivalDone, '"Rata" ha cruzado la meta antes que tú.');
+    ctx.failIf(() => pl.vehicle !== mine, 'Has abandonado el coche.');
+    for (let i = 0; i < route.length; i++) {
+      const p = route[i];
+      await ctx.goTo(p.x, p.z, { radius: 9, vehicle: mine, text: `Vuelta ${i < lap.length ? 1 : 2}/2 · control ${(i % lap.length) + 1}/${lap.length}`, label: 'Control' });
+      audio.play('checkpoint');
+    }
+    rival.ai = null;
+    mine.playerOwned = true;
+    await ctx.say('Quim (teléfono)', '¡JA! ¡Cinco mil para el bote! El Garbí es tuyo, te lo has ganado.');
+  },
+
+  async dani2(ctx, g) {
+    const pl = g.player;
+    await ctx.say('Dani', 'Esta noche llega un barco con mercancía. No puede atracar: lo recogemos en alta mar.');
+    await ctx.say('Dani', 'Hay una lancha esperándote en el Port Olímpic. Recoge la carga en la boya y llévala al muelle de la Zona Franca.');
+    if (!g.world.sky.isNight()) g.world.sky.time = 23;
+    const dock = g.activities.docks.find((d) => d.name === 'Port Olímpic') || g.activities.docks[0];
+    const boat = ctx.spawnVehicle('speedboat', dock.x, dock.z + 6, 0, { color: 0x1a1a1a, keep: true });
+    boat.health = boat.maxHealth = 1600;
+    ctx.blip(boat.x, boat.z, '⚓', 'Lancha');
+    ctx.gps(boat.x, boat.z);
+    ctx.objective('Ve a la <b>lancha</b> del Port Olímpic.');
+    await ctx.until(() => pl.vehicle === boat);
+    ctx.failIf(() => boat.destroyed, 'La lancha ha quedado destrozada.');
+    await ctx.goTo(700, 900, { vehicle: boat, radius: 10, text: 'Navega hasta la <b>boya</b> en alta mar.', label: 'Boya' });
+    g.hud.notify('Carga recogida. ¡Una patrullera se acerca!');
+    const pb = ctx.spawnVehicle('policeboat', 760, 980, Math.PI);
+    pb.driver = g.peds.createDriver(pb);
+    pb.siren = true;
+    const chase = { kind: 'boatchase', update: (dt) => {
+      const tx = boat.x + boat.vx * 0.6, tz = boat.z + boat.vz * 0.6;
+      const d = Math.hypot(tx - pb.x, tz - pb.z);
+      const diff = Math.atan2(tx - pb.x, tz - pb.z) - pb.heading;
+      const w = Math.atan2(Math.sin(diff), Math.cos(diff));
+      pb.input.steer = Math.max(-1, Math.min(1, -w * 2));
+      pb.input.throttle = d > 6 ? 1 : 0.4;
+      pb.input.brake = 0;
+    } };
+    pb.ai = chase;
+    const pbb = g.blips.add({ x: pb.x, z: pb.z, follow: pb, icon: '●', color: '#3060ff', kind: 'enemy', temp: true });
+    ctx.keep(() => { g.blips.remove(pbb); pb.ai = null; pb.persistent = false; pb.siren = false; });
+    g.police.applyCrime({ add: 0, min: 2, label: 'Contrabando' }, boat.x, boat.z);
+    await ctx.goTo(-600, 960, { vehicle: boat, radius: 14, text: 'Lleva la carga al <b>muelle de la Zona Franca</b>.', label: 'Muelle' });
+    await ctx.say('Dani (radio)', 'Carga entregada. Mis chicos se ocupan del resto. Buen trabajo, mariner.');
+    if (g.police.level > 0) { ctx.objective('Pierde a la <b>policía</b>.'); await ctx.until(() => g.police.level === 0); }
+  },
+
   async marta1(ctx, g) {
     const pl = g.player;
     const C = CONTACTS.marta;

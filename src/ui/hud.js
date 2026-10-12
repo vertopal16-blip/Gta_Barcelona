@@ -433,7 +433,7 @@ export class BigMap {
       M · Misión / contacto &nbsp; 🏠 Propiedad &nbsp; 💼 Negocio<br>
       🔫 Armería &nbsp; 🛒 Tienda &nbsp; 👕 Ropa &nbsp; 🔧 Taller &nbsp; 🚗 Concesionario<br>
       🏁 Carrera &nbsp; ⤴ Salto &nbsp; ✿ Panot (${found}/30)<br>
-      <br>Misiones completadas: ${g.missions.done.size}/9<br>
+      <br>Misiones completadas: ${g.missions.done.size}/${g.missionData.MISSIONS.length}<br>
       Dinero: ${formatMoney(g.economy.money)}`;
   }
 
@@ -643,7 +643,7 @@ export class UI {
   stats() {
     const g = this.game, s = g.stats;
     const rows = [
-      ['Misiones completadas', `${g.missions.done.size} / 9`], ['Dinero ganado', formatMoney(s.earned)], ['Propiedades', g.economy.owned.size], ['Negocios', g.economy.businesses.size],
+      ['Misiones completadas', `${g.missions.done.size} / ${g.missionData.MISSIONS.length}`], ['Dinero ganado', formatMoney(s.earned)], ['Propiedades', g.economy.owned.size], ['Negocios', g.economy.businesses.size],
       ['Panots encontrados', `${g.activities.panotFound.size} / 30`], ['Saltos únicos', `${g.activities.jumpsDone.size} / 6`], ['Coches robados', s.carsStolen], ['Coches vendidos', s.carsSold],
       ['Carreras de taxi', s.taxiFares], ['Repartos', s.deliveries], ['Carreras ganadas', s.racesWon], ['Atracos', s.robberies], ['Delincuentes detenidos', s.criminals],
       ['Buenas acciones', s.goodDeeds], ['Bajas', s.kills], ['Detenciones sufridas', s.busted], ['Veces hospitalizado', s.wasted],
@@ -655,6 +655,8 @@ export class UI {
   settings() {
     const g = this.game, st = g.settings;
     const html = `
+      <div class="row">Calidad gráfica <select id="set-quality">${['baja', 'media', 'alta'].map((q) => `<option value="${q}" ${st.quality === q ? 'selected' : ''}>${q[0].toUpperCase() + q.slice(1)}</option>`).join('')}</select>
+        <label><input id="set-auto" type="checkbox" ${st.autoQuality ? 'checked' : ''}> automática</label></div>
       <div class="row">Volumen <input id="set-vol" type="range" min="0" max="1" step="0.05" value="${st.volume}"></div>
       <div class="row">Volumen de la radio <input id="set-radio" type="range" min="0" max="1" step="0.05" value="${st.radio ?? 0.5}"></div>
       <div class="row">Sensibilidad del ratón <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" value="${st.sensitivity}"></div>
@@ -663,6 +665,7 @@ export class UI {
       <div class="row"><label><input id="set-inv" type="checkbox" ${st.invertY ? 'checked' : ''}> Invertir eje Y</label></div>
       <div class="row"><label><input id="set-shadows" type="checkbox" ${st.shadows ? 'checked' : ''}> Sombras</label></div>`;
     this.menu({ title: 'Ajustes', html, options: [{ label: 'Guardar y volver', action: () => {
+      st.quality = $('set-quality').value; st.autoQuality = $('set-auto').checked;
       st.volume = +$('set-vol').value; st.radio = +$('set-radio').value; st.sensitivity = +$('set-sens').value; st.traffic = +$('set-traffic').value;
       st.view = +$('set-fog').value; st.invertY = $('set-inv').checked; st.shadows = $('set-shadows').checked;
       g.applySettings();

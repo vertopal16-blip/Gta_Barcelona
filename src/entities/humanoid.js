@@ -115,6 +115,7 @@ function weaponMesh(kind) {
     else if (kind === 'bat') { b.cylinder(0, -0.1, 0.0, 0.025, 0.045, 0.8, 0xc8a060, 6); }
     else if (kind === 'knife') { b.box(0, 0, 0.1, 0.02, 0.03, 0.2, 0xd0d0d0); }
     else if (kind === 'phone') { b.box(0, 0, 0.04, 0.06, 0.1, 0.012, 0x111111); }
+    else if (kind === 'guitar') { b.box(0.05, -0.1, 0.12, 0.34, 0.42, 0.1, 0x9a5a2a); b.box(0.05, 0.25, 0.12, 0.06, 0.5, 0.04, 0x3a2a1a); }
     else if (kind === 'bag') { b.box(0, -0.15, 0, 0.3, 0.25, 0.12, 0x6a3a2a); }
     else return null;
     WEAPON_GEO[kind] = b.toGeometry();
@@ -230,6 +231,9 @@ export class Humanoid {
         break;
       case 'play': // guitarra / músico callejero
         la = -0.9; ra = -0.6; el = -1.6; er = -1.2 + Math.sin(this.phase * 6) * 0.25; armSideR = -0.3;
+        break;
+      case 'statue':
+        la = -1.2; ra = -0.2; el = -0.4; er = -0.1; armSideL = 0.2; this.phase -= dt * (2.2 + speed * 1.35);
         break;
       case 'idle': default:
         la = Math.sin(this.phase * 0.3) * 0.03; ra = -la;

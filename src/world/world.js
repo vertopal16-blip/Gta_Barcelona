@@ -95,7 +95,8 @@ export class World {
         L.position.set(x + Math.sin(a) * 1.3, groundHeight(x, z) + 5.8, z + Math.cos(a) * 1.3);
       });
     }
-    for (const L of this.lampLights) L.intensity = on && !L.userData.off ? 120 * Math.min(1, (night - 0.35) * 3) : 0;
+    const maxL = this.maxLampLights ?? 8;
+    this.lampLights.forEach((L, i) => { L.intensity = on && !L.userData.off && i < maxL ? 120 * Math.min(1, (night - 0.35) * 3) : 0; });
   }
 
   /** Punto en la acera más cercana a (x,z). */

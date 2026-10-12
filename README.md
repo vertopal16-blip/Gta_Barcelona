@@ -8,6 +8,8 @@ Videojuego de mundo abierto, acción y conducción ambientado en una **Barcelona
 |---|---|
 | ![Ciutat Vella](docs/img/ciutat-vella.png) | ![Vila Olímpica y playa](docs/img/vila-olimpica.png) |
 | ![Conducción](docs/img/conduccion.png) | ![Noche en el Eixample](docs/img/noche.png) |
+| ![Passeig de Gràcia](docs/img/passeig-de-gracia.png) | ![Lancha en el Port Vell](docs/img/lancha.png) |
+| ![Tejados del Gòtic](docs/img/gotic-tejados.png) | ![La Rambla](docs/img/rambla.png) |
 
 ![Mapa](docs/img/mapa.png)
 
@@ -40,6 +42,7 @@ Si la pantalla de carga muestra un error, normalmente es que WebGL está desacti
 | `Q` · `1`-`7` | Cambiar de arma |
 | `R` | Recargar |
 | `H` / `L` / `G` | Claxon / luces / sirena (coche patrulla) |
+| `N` | Cambiar emisora de radio |
 | `J` | Trabajos: taxi, reparto en moto, vigilante |
 | `M` | Mapa completo (clic = destino GPS) |
 | `T` | Teléfono (contactos, taxi rápido) |
@@ -57,6 +60,17 @@ Compatible con mando (sticks + gatillos).
 - Playa con sombrillas y socorristas, palmeras, plátanos en las aceras, farolas, contenedores de reciclaje, quioscos, semáforos funcionales y aceras de **panot**.
 - Ciclo día/noche (24 min), sol mediterráneo, ventanas iluminadas, farolas con luz real, lluvia ocasional.
 
+**Novedades de la versión 0.2:**
+- Personajes articulados (rodillas, codos, manos, caras, barbas, gafas, pelo variado) y animaciones nuevas (charlar, sentarse, bailar, tocar la guitarra).
+- Coches rediseñados (parabrisas inclinados, retrovisores, llantas, pasos de rueda) y **barcos** pilotables con física de agua y estela: Port Vell, Barceloneta, Port Olímpic y Zona Franca.
+- Fachadas con **comercios** (escaparates iluminados de noche, toldos, rótulos, cruces verdes de farmacia), **balcones** de forja en el Eixample y el Gòtic, y **tejados de teja** en los barrios antiguos.
+- Nubes que se mueven, mar con oleaje y reflejos, árboles y farolas en La Rambla.
+- **Radio del coche** con música generada en tiempo real: rumba catalana, lo-fi mediterráneo, techno y cobla.
+- **Metro**: 16 estaciones con bocas de metro y viaje rápido (2,55 €).
+- **Vida en la calle**: bandadas de palomas que echan a volar, estatuas humanas, músicos y bailarines (puedes darles propina), grupos charlando y gente sentada en los bancos.
+- **3 misiones nuevas** (12 en total): rescate en Poblenou, rally en Montjuïc y contrabando nocturno en lancha con persecución de una patrullera.
+- **Calidad gráfica** baja/media/alta con ajuste automático si el juego va lento.
+
 **Sistemas que interactúan entre sí:**
 - **Tráfico** con IA por carriles: respeta semáforos, frena ante obstáculos, se atasca y maniobra, entra en pánico ante tiroteos. Taxis negro-amarillos, autobuses, motos, furgonetas…
 - **Peatones** por barrio (turistas en el Gòtic y la Sagrada Família, bañistas en la playa, trabajadores en la Zona Franca): pasean, hablan en catalán/castellano, huyen, se acobardan, se rinden si les apuntas, esquivan coches o te plantan cara.
@@ -64,7 +78,7 @@ Compatible con mando (sticks + gatillos).
 - **Combate**: puños, bate, navaja, pistola, subfusil, escopeta y fusil; disparos con línea de visión, tiros a la cabeza, retroceso, recarga.
 - **Policía** con testigos: los delitos se denuncian si alguien los ve. 1-5 estrellas, zona de búsqueda en el minimapa, patrullas que persiguen y embisten, agentes que te detienen o disparan, helicóptero con foco (derribable). Puedes huir, esconderte o repintar el coche.
 - **Economía**: tiendas, armerías, ropa (cambiar de aspecto ayuda a despistar), talleres, concesionario, pisos francos (guardado, garaje), negocios con ingresos diarios, desguace para vender coches robados, atracos a comercios.
-- **Historia original y no lineal**: 4 contactos (Marta, Quim, Inés y Dani "Llop") y 9 misiones que se desbloquean entre sí: repartos, cobros, persecuciones, robos de coches, sabotajes, escoltas y un tiroteo final en el castillo.
+- **Historia original y no lineal**: 4 contactos (Marta, Quim, Inés y Dani "Llop") y 12 misiones que se desbloquean entre sí: repartos, cobros, persecuciones, robos de coches, sabotajes, escoltas y un tiroteo final en el castillo.
 - **Actividades**: taxista, repartidor en moto, vigilante, 3 carreras callejeras (Montjuïc, Diagonal, Litoral), 6 saltos acrobáticos, 30 baldosas *panot* escondidas, sucesos aleatorios (carteristas, turistas perdidos, peleas).
 - **Interfaz**: minimapa giratorio con ruta GPS, mapa completo con zoom y destinos, teléfono, estadísticas, ajustes de calidad y guardado en el navegador.
 

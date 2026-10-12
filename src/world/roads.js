@@ -248,10 +248,11 @@ export class RoadNetwork {
   }
 
   /** Distancia del punto al borde de la calzada más cercana (negativa si está dentro). */
-  roadDistance(x, z) {
+  roadDistance(x, z, carsOnly = false) {
     let best = Infinity;
     for (const id of this.edgesNear(x, z, 10)) {
       const e = this.edges[id];
+      if (carsOnly && e.noTraffic) continue;
       const A = this.nodes[e.a], B = this.nodes[e.b];
       const d = pointSegment(x, z, A.x, A.z, B.x, B.z).d - e.w / 2;
       if (d < best) best = d;

@@ -187,7 +187,7 @@ export class Police {
     // Patrullas cercanas que no son nuestras se unen
     for (const v of g.vehicles.list) {
       if (activeCars >= wantCars) break;
-      if (v.T.police && !v.destroyed && v.driver && v.driver.isPed && v.driver.alive && !this.units.includes(v) && dist2(v.x, v.z, pl.x, pl.z) < 120) { this.recruit(v); activeCars++; }
+      if (v.T.police && !v.isBoat && !v.destroyed && v.driver && v.driver.isPed && v.driver.alive && !this.units.includes(v) && dist2(v.x, v.z, pl.x, pl.z) < 120) { this.recruit(v); activeCars++; }
     }
     // Las unidades sobrantes o destruidas dejan de contar
     this.units = this.units.filter((v) => !v.destroyed || dist2(v.x, v.z, pl.x, pl.z) < 150);

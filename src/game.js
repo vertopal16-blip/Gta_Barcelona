@@ -18,10 +18,19 @@ import { Pickups, Markers } from './systems/pickups.js';
 import { Economy, PROPERTIES } from './systems/economy.js';
 import { Missions, CONTACTS, MISSIONS } from './systems/missions.js';
 import { Activities } from './systems/activities.js';
+import { Ambient } from './systems/ambient.js';
 import { SaveSystem } from './systems/save.js';
 import { HUD, Blips, GPS, BigMap, UI } from './ui/hud.js';
 import { LaneDriver } from './entities/traffic.js';
 import { VEHICLE_TYPES } from './entities/vehicle.js';
+
+/** Niveles de calidad gráfica. */
+export const QUALITY = {
+  baja: { name: 'Baja', ratio: 0.75, shadow: 0, view: 0.6, traffic: 18, peds: 24, lamps: 0 },
+  media: { name: 'Media', ratio: 1, shadow: 1024, view: 0.85, traffic: 26, peds: 34, lamps: 4 },
+  alta: { name: 'Alta', ratio: 'max', shadow: 2048, view: 1, traffic: 30, peds: 42, lamps: 8 },
+};
+const QUALITY_ORDER = ['baja', 'media', 'alta'];
 
 const HOSPITALS = [
   { name: 'Hospital del Mar', x: 606, z: 296 },
@@ -48,7 +57,7 @@ export class Game {
     this.simTime = 0;
     this.frustum = new THREE.Frustum();
     this.projScreen = new THREE.Matrix4();
-    this.settings = { radio: 0.5, volume: 0.6, sensitivity: 1, traffic: 1, view: 1, invertY: false, shadows: true };
+    this.settings = { quality: 'alta', autoQuality: true, radio: 0.5, volume: 0.6, sensitivity: 1, traffic: 1, view: 1, invertY: false, shadows: true };
     this.stats = {
       earned: 0, kills: 0, carsStolen: 0, carsSold: 0, taxiFares: 0, deliveries: 0, racesWon: 0, robberies: 0, criminals: 0,
       goodDeeds: 0, busted: 0, wasted: 0, longestJump: 0, distance: 0, time: 0, missions: 0, properties: 0, weaponsBought: 0,
@@ -82,6 +91,7 @@ export class Game {
     this.economy = new Economy(this);
     this.missions = new Missions(this);
     this.activities = new Activities(this);
+    this.ambient = new Ambient(this);
     this.save = new SaveSystem(this);
     this.hud.buildMapCanvas();
     this.economy.setup();
@@ -136,10 +146,21 @@ export class Game {
     audio.setVolume(s.volume);
     this.input.sensitivity = s.sensitivity;
     this.input.invertY = s.invertY;
-    this.vehicles.trafficTarget = Math.round(30 * s.traffic);
-    this.renderer.shadowMap.enabled = s.shadows;
-    this.world.sky.sun.castShadow = s.shadows;
-    this.viewFactor = s.view;
+    const Q = QUALITY[s.quality] || QUALITY.media;
+    this.vehicles.trafficTarget = Math.round(Q.traffic * s.traffic);
+    this.peds.target = Q.peds;
+    const shadows = s.shadows && Q.shadow > 0;
+    this.renderer.shadowMap.enabled = shadows;
+    const sun = this.world.sky.sun;
+    sun.castShadow = shadows;
+    if (shadows && sun.shadow.mapSize.x !== Q.shadow) {
+      sun.shadow.mapSize.set(Q.shadow, Q.shadow);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    }
+    this.renderer.setPixelRatio(Q.ratio === 'max' ? Math.min(window.devicePixelRatio, 1.5) : Q.ratio);
+    this.renderer.setSize(innerWidth, innerHeight);
+    this.world.maxLampLights = Q.lamps;
+    this.viewFactor = s.view * Q.view;
     this.scene.traverse((o) => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach((x) => (x.needsUpdate = true)); } });
   }
 
@@ -282,7 +303,7 @@ export class Game {
     if (!pv || (a !== pv && b !== pv)) return;
     const other = a === pv ? b : a;
     if (impact > 4) this.camera.shake(Math.min(0.5, impact * 0.03), 0.3);
-    if (other.T.police && impact > 4) this.reportCrime('assaultCop', other.x, other.z, other);
+    if (other.T.police && impact > 4 && !(other.ai && (other.ai.kind === 'pursuit' || other.ai.kind === 'boatchase'))) this.reportCrime('assaultCop', other.x, other.z, other);
     // El conductor afectado reacciona
     const d = other.driver;
     if (d && d.isPed && d.alive && other.ai && other.ai.kind === 'lane' && impact > 5 && !other.T.police) {
@@ -299,7 +320,8 @@ export class Game {
     if (!v.isBike && !v.T.police) {
       if (v.radioStation === undefined) v.radioStation = Math.floor(Math.random() * (STATIONS.length + 1)) - 1;
       radio.index = v.radioStation;
-      if (radio.station) setTimeout(() => this.hud.notify(`📻 <b>${radio.station.name}</b> · ${radio.station.desc} <small>(<kbd>N</kbd> cambiar)</small>`, 4), 600);
+      const st = radio.station;
+      if (st) setTimeout(() => this.hud.notify(`📻 <b>${st.name}</b> · ${st.desc} <small>(<kbd>N</kbd> cambiar)</small>`, 4), 600);
     } else radio.index = -1;
     this.hud.notify(`<b>${v.T.name}</b>${v.T.taxi ? ' · Pulsa <kbd>J</kbd> para hacer de taxista' : v.type === 'scooter' ? ' · Pulsa <kbd>J</kbd> para repartir comida' : v.T.police ? ' · <kbd>J</kbd> vigilante · <kbd>G</kbd> sirena' : ''}`, 4);
     if (v === this.cousinCar) this.blips.removeTemp();
@@ -411,11 +433,32 @@ export class Game {
     const frame = (now) => {
       requestAnimationFrame(frame);
       if (this.manual) { last = now; return; }
-      const realDt = Math.max(0, Math.min(0.05, (now - last) / 1000));
+      const rawDt = (now - last) / 1000;
+      const realDt = Math.max(0, Math.min(0.05, rawDt));
+      this.monitorFps(rawDt);
       last = now;
       this.step(realDt);
     };
     requestAnimationFrame(frame);
+  }
+
+  /** Baja la calidad automáticamente si el juego va lento. */
+  monitorFps(dt) {
+    if (!this.started || this.paused || !this.settings.autoQuality || dt <= 0 || dt > 1) { this.fpsAcc = 0; this.fpsN = 0; return; }
+    this.fpsAcc = (this.fpsAcc || 0) + dt;
+    this.fpsN = (this.fpsN || 0) + 1;
+    this.playT = (this.playT || 0) + dt;
+    if (this.fpsAcc < 4) return;
+    const fps = this.fpsN / this.fpsAcc;
+    this.fpsAcc = 0; this.fpsN = 0;
+    this.fps = fps;
+    if (this.playT < 3) return;
+    const i = QUALITY_ORDER.indexOf(this.settings.quality);
+    if (fps < 26 && i > 0) {
+      this.settings.quality = QUALITY_ORDER[i - 1];
+      this.applySettings();
+      this.hud.notify(`Rendimiento bajo (${Math.round(fps)} FPS): calidad gráfica ajustada a <b>${QUALITY[this.settings.quality].name}</b>. Puedes cambiarla en Ajustes.`, 6);
+    }
   }
 
   /** Simula sin renderizar (pruebas automáticas). */
@@ -455,6 +498,7 @@ export class Game {
       this.markers.update(dt);
       this.missions.update(dt);
       this.activities.update(dt);
+      this.ambient.update(dt);
       this.economy.update(dt);
       this.gps.update(dt);
       audio.listener.x = focus.x; audio.listener.z = focus.z;

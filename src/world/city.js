@@ -548,9 +548,9 @@ export class City {
     const rng = makeRng(555);
     const trees = [], palms = [], lamps = [], signals = [], benches = [], bins = [];
     const R = this.roads;
-    const blocked = (x, z, r = 1) => {
+    const blocked = (x, z, r = 1, prom = false) => {
       if (isWater(x, z)) return true;
-      if (R.roadDistance(x, z) < 0.3) return true;
+      if (R.roadDistance(x, z, prom) < 0.3) return true;
       return this.collision.query(x - r, z - r, x + r, z + r).some((c) => c.tag === 'building' && pointInsideish(c, x, z, r));
     };
     const TREE_DISTRICTS = new Set(['eixample', 'sants', 'lescorts', 'poblenou', 'gracia', 'vilaolimpica', 'poblesec', 'zonafranca']);
@@ -567,7 +567,7 @@ export class City {
           const x = A.x + e.dx * s - e.dz * off * side, z = A.z + e.dz * s + e.dx * off * side;
           if (palmRow) {
             if (side === 1 && !blocked(x, z)) palms.push([x, z, rng()]);
-          } else if (treeRow && !blocked(x, z, 0.6)) trees.push([x, z, rng()]);
+          } else if (treeRow && !blocked(x, z, 0.6, isProm)) trees.push([x, z, rng()]);
         }
       }
       // Farolas
@@ -576,7 +576,7 @@ export class City {
           const side = Math.floor(s / 26) % 2 ? 1 : -1;
           const off = isProm ? 2 : e.w / 2 + Math.max(0.5, e.sidewalk * 0.25);
           const x = A.x + e.dx * s - e.dz * off * side, z = A.z + e.dz * s + e.dx * off * side;
-          if (!blocked(x, z, 0.3)) lamps.push([x, z, Math.atan2(e.dz * side, -e.dx * side)]);
+          if (!blocked(x, z, 0.3, isProm)) lamps.push([x, z, Math.atan2(e.dz * side, -e.dx * side)]);
         }
       }
       // Bancos y contenedores
@@ -629,6 +629,7 @@ export class City {
     this.placePalms(palms);
     this.placeLamps(lamps);
     this.placeSignals(signals);
+    this.benchPositions = benches;
     this.placeSmall(benches, bins);
     this.placeBeach(rng);
   }
