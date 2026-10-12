@@ -1,0 +1,11 @@
+{
+  "name": "barcelona-open-world",
+  "version": "0.1.0",
+  "description": "Videojuego de mundo abierto ambientado en Barcelona (Three.js, sin compilación).",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1 .",
+    "serve": "python3 -m http.server 8080"
+  },
+  "license": "UNLICENSED"
+}

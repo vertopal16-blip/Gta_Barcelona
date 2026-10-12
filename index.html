@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Barcelona: Open World</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    { "imports": { "three": "./lib/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Pantalla de carga / título -->
+  <div id="title" class="screen">
+    <div class="title-wrap">
+      <h1 class="logo"><span>BARCELONA</span><small>OPEN WORLD</small></h1>
+      <p class="tagline">Una ciudad. Mil maneras de vivirla.</p>
+      <div id="loading">
+        <div class="bar"><div id="loadbar"></div></div>
+        <div id="loadtext">Cargando…</div>
+      </div>
+      <div id="menu" class="hidden">
+        <button id="btn-new">Nueva partida</button>
+        <button id="btn-continue" class="hidden">Continuar</button>
+        <button id="btn-controls">Controles</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="hud-topright">
+      <div id="clock">09:00</div>
+      <div id="money">300 €</div>
+      <div id="wanted"></div>
+      <div id="weapon"><span id="weapon-name">Puños</span> <span id="weapon-ammo"></span></div>
+    </div>
+    <div id="hud-bottomleft">
+      <canvas id="minimap" width="220" height="220"></canvas>
+      <div class="bars">
+        <div class="bar health"><div id="healthbar"></div></div>
+        <div class="bar armor"><div id="armorbar"></div></div>
+        <div class="bar stamina"><div id="staminabar"></div></div>
+      </div>
+    </div>
+    <div id="district"></div>
+    <div id="vehicle-info"><div id="vehicle-name"></div><div id="speed"></div></div>
+    <div id="notifications"></div>
+    <div id="objective"></div>
+    <div id="subtitle"></div>
+    <div id="prompt"></div>
+    <div id="crosshair">+</div>
+    <div id="bigmessage"></div>
+    <div id="timer"></div>
+    <div id="bubbles"></div>
+  </div>
+
+  <!-- Mapa grande -->
+  <div id="bigmap" class="hidden">
+    <canvas id="bigmap-canvas"></canvas>
+    <div id="bigmap-legend"></div>
+    <div class="bigmap-help">Clic: marcar destino (GPS) · Rueda: zoom · Arrastrar: mover · M / Esc: cerrar</div>
+  </div>
+
+  <!-- Menús (tiendas, pausa, diálogos) -->
+  <div id="modal" class="hidden"><div id="modal-box"></div></div>
+
+  <div id="fade"></div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
