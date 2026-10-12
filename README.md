@@ -13,12 +13,17 @@ Videojuego de mundo abierto, acción y conducción ambientado en una **Barcelona
 
 ## Cómo jugar
 
+**Opción fácil:** descarga el repositorio y abre `index.html` con doble clic (Chrome, Edge o Firefox). Carga el juego empaquetado `game.bundle.js`, que funciona sin servidor.
+
+**Con servidor local:**
 ```bash
 npm start            # o: python3 -m http.server 8080
 # abre http://localhost:8080
 ```
 
-Hace falta servirlo por HTTP (los módulos ES no cargan desde `file://`). Funciona en cualquier navegador moderno con WebGL2; se recomienda una GPU dedicada o integrada reciente.
+Si la pantalla de carga muestra un error, normalmente es que WebGL está desactivado: activa la *aceleración por hardware* en los ajustes del navegador. Ojo: el juego no se puede ver desde la página de GitHub; hay que descargarlo (botón *Code → Download ZIP*) o servirlo.
+
+**Desarrollo:** `index-dev.html` carga directamente los módulos de `src/` (necesita servidor HTTP). Tras modificar el código, regenera el paquete con `npm install && npm run build`.
 
 ### Controles
 

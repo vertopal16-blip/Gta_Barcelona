@@ -5,8 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Barcelona: Open World</title>
   <link rel="stylesheet" href="css/style.css" />
-  <script type="importmap">
-    { "imports": { "three": "./lib/three.module.min.js" } }
+  <script>
+    // Muestra cualquier error en la pantalla de carga (en vez de quedarse colgado)
+    (function () {
+      function show(msg) {
+        var t = document.getElementById('loadtext');
+        if (t) { t.style.color = '#ffb0a0'; t.textContent = 'Error: ' + msg; }
+      }
+      window.addEventListener('error', function (e) { show(e.message || 'error desconocido'); });
+      window.addEventListener('unhandledrejection', function (e) { show((e.reason && e.reason.message) || String(e.reason)); });
+      var c = document.createElement('canvas');
+      if (!(c.getContext('webgl2') || c.getContext('webgl'))) {
+        window.addEventListener('DOMContentLoaded', function () { show('tu navegador no tiene WebGL activado (activa la aceleración por hardware).'); });
+      }
+      setTimeout(function () {
+        if (!window.__ready) {
+          var t = document.getElementById('loadtext');
+          if (t && t.textContent.indexOf('Error') !== 0) t.textContent += ' (sigue cargando… si no avanza, abre la consola con F12 y revisa el error)';
+        }
+      }, 30000);
+    })();
   </script>
 </head>
 <body>
@@ -69,6 +87,6 @@
 
   <div id="fade"></div>
 
-  <script type="module" src="src/main.js"></script>
+  <script src="game.bundle.js"></script>
 </body>
 </html>

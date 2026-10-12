@@ -288,7 +288,7 @@ export class Game {
       if (d.brave && rand() < 0.5 && pv.speed < 6) {
         setTimeout(() => { if (d.alive && other.driver === d && !other.removed) { this.peds.ejectFrom(other, d, 'fight'); other.ai = null; } }, 900);
       } else {
-        import('./core/audio.js').then(({ audio: a2 }) => a2.play('horn', other.x, other.z));
+        audio.play('horn', other.x, other.z);
         other.ai.panicT = 8;
       }
     }
