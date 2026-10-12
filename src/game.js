@@ -6,6 +6,7 @@ import { World } from './world/world.js';
 import { Input } from './core/input.js';
 import { CameraRig } from './core/camera.js';
 import { audio } from './core/audio.js';
+import { radio, STATIONS } from './core/radio.js';
 import { events } from './core/events.js';
 import { rand, dist2, clamp, formatMoney } from './core/utils.js';
 import { Player } from './entities/player.js';
@@ -47,7 +48,7 @@ export class Game {
     this.simTime = 0;
     this.frustum = new THREE.Frustum();
     this.projScreen = new THREE.Matrix4();
-    this.settings = { volume: 0.6, sensitivity: 1, traffic: 1, view: 1, invertY: false, shadows: true };
+    this.settings = { radio: 0.5, volume: 0.6, sensitivity: 1, traffic: 1, view: 1, invertY: false, shadows: true };
     this.stats = {
       earned: 0, kills: 0, carsStolen: 0, carsSold: 0, taxiFares: 0, deliveries: 0, racesWon: 0, robberies: 0, criminals: 0,
       goodDeeds: 0, busted: 0, wasted: 0, longestJump: 0, distance: 0, time: 0, missions: 0, properties: 0, weaponsBought: 0,
@@ -295,6 +296,11 @@ export class Game {
   }
 
   onEnterVehicle(v) {
+    if (!v.isBike && !v.T.police) {
+      if (v.radioStation === undefined) v.radioStation = Math.floor(Math.random() * (STATIONS.length + 1)) - 1;
+      radio.index = v.radioStation;
+      if (radio.station) setTimeout(() => this.hud.notify(`📻 <b>${radio.station.name}</b> · ${radio.station.desc} <small>(<kbd>N</kbd> cambiar)</small>`, 4), 600);
+    } else radio.index = -1;
     this.hud.notify(`<b>${v.T.name}</b>${v.T.taxi ? ' · Pulsa <kbd>J</kbd> para hacer de taxista' : v.type === 'scooter' ? ' · Pulsa <kbd>J</kbd> para repartir comida' : v.T.police ? ' · <kbd>J</kbd> vigilante · <kbd>G</kbd> sirena' : ''}`, 4);
     if (v === this.cousinCar) this.blips.removeTemp();
   }
@@ -436,6 +442,11 @@ export class Game {
       this.vehicles.populate(dt);
       this.vehicles.update(dt);
       if (pl.vehicle) { const v = pl.vehicle; pl.x = v.x; pl.y = v.y; pl.z = v.z; pl.syncModel(); }
+      if (pl.vehicle && this.input.hit('KeyN') && !pl.vehicle.isBike) {
+        const st = radio.next();
+        pl.vehicle.radioStation = radio.index;
+        this.hud.notify(st ? `📻 <b>${st.name}</b> · ${st.desc}` : '📻 Radio apagada', 3);
+      }
       this.peds.populate(dt);
       this.peds.update(dt);
       this.police.update(dt);
@@ -456,6 +467,8 @@ export class Game {
       this.hud.update(realDt);
       this.bigmap.draw();
     }
+    radio.volume = this.settings.radio ?? 0.5;
+    radio.setActive(this.started && !this.paused && !!pl.vehicle && !pl.dead);
     if (render) this.renderer.render(this.scene, this.camera3);
     this.input.endFrame();
   }

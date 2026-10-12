@@ -411,6 +411,35 @@ function panotTexture() {
   });
 }
 
+/** Mapa de normales de oleaje (ruido suave). */
+function waveNormalMap() {
+  const N = 128;
+  const rng = makeRng(77);
+  const h = new Float32Array(N * N);
+  const waves = Array.from({ length: 14 }, () => ({ kx: Math.round(rng.range(-6, 6)), kz: Math.round(rng.range(-6, 6)), a: rng.range(0.3, 1), p: rng() * 6.28 }));
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let v = 0;
+    for (const w of waves) v += w.a * Math.sin((w.kx * x + w.kz * y) / N * Math.PI * 2 + w.p);
+    h[y * N + x] = v;
+  }
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = N;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = h[y * N + (x + 1) % N] - h[y * N + (x - 1 + N) % N];
+    const dy = h[((y + 1) % N) * N + x] - h[((y - 1 + N) % N) * N + x];
+    const nx = -dx * 0.15, ny = -dy * 0.15, nz = 1;
+    const l = Math.hypot(nx, ny, nz);
+    const k = (y * N + x) * 4;
+    img.data[k] = (nx / l * 0.5 + 0.5) * 255; img.data[k + 1] = (ny / l * 0.5 + 0.5) * 255; img.data[k + 2] = (nz / l * 0.5 + 0.5) * 255; img.data[k + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
 let _materials = null;
 
 /** Materiales compartidos de la ciudad. */
@@ -445,10 +474,12 @@ export function getMaterials() {
   });
   m.ground = new THREE.MeshLambertMaterial({ vertexColors: true, map: noiseTexture(256, '#ffffff', 50, 9) });
   m.water = new THREE.MeshPhongMaterial({
-    color: 0x2a6f97, specular: 0x88bbdd, shininess: 60, transparent: true, opacity: 0.88,
-    map: noiseTexture(256, '#ffffff', 70, 13),
+    color: 0x1f6a92, specular: 0xbfe4ff, shininess: 90, transparent: true, opacity: 0.9,
+    map: noiseTexture(256, '#ffffff', 40, 13),
+    normalMap: waveNormalMap(), normalScale: new THREE.Vector2(0.6, 0.6),
   });
   m.water.map.repeat.set(60, 60);
+  m.water.normalMap.repeat.set(220, 220);
   m.glass = new THREE.MeshPhongMaterial({ color: 0x22313d, specular: 0x8899aa, shininess: 80, transparent: true, opacity: 0.85 });
   _materials = m;
   return m;

@@ -69,6 +69,9 @@ export class World {
       const m = this.materials.water.map;
       m.offset.x = (m.offset.x + dt * 0.004) % 1;
       m.offset.y = (m.offset.y + dt * 0.0025) % 1;
+      const nm = this.materials.water.normalMap;
+      nm.offset.x = (nm.offset.x + dt * 0.02) % 1;
+      nm.offset.y = (nm.offset.y - dt * 0.013) % 1;
     }
   }
 

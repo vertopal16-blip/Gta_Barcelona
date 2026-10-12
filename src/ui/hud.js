@@ -631,7 +631,7 @@ export class UI {
     const rows = [
       ['W A S D', 'Moverse / conducir'], ['Ratón', 'Cámara'], ['Shift', 'Esprintar'], ['Espacio', 'Saltar / freno de mano'],
       ['F', 'Entrar / salir / robar vehículo'], ['E', 'Interactuar (tiendas, contactos)'], ['Clic izq.', 'Atacar / disparar'], ['Clic der.', 'Apuntar (también desde el coche)'],
-      ['Q · 1-7', 'Cambiar de arma'], ['R', 'Recargar'], ['H', 'Claxon'], ['G', 'Sirena (coche patrulla)'], ['L', 'Luces'],
+      ['Q · 1-7', 'Cambiar de arma'], ['R', 'Recargar'], ['H', 'Claxon'], ['N', 'Cambiar emisora de radio'], ['G', 'Sirena (coche patrulla)'], ['L', 'Luces'],
       ['J', 'Trabajo: taxi / reparto / vigilante'], ['M', 'Mapa (clic para marcar destino GPS)'], ['T', 'Teléfono'], ['Rueda', 'Zoom de cámara'], ['Esc / P', 'Pausa'],
     ];
     this.menu({
@@ -656,13 +656,14 @@ export class UI {
     const g = this.game, st = g.settings;
     const html = `
       <div class="row">Volumen <input id="set-vol" type="range" min="0" max="1" step="0.05" value="${st.volume}"></div>
+      <div class="row">Volumen de la radio <input id="set-radio" type="range" min="0" max="1" step="0.05" value="${st.radio ?? 0.5}"></div>
       <div class="row">Sensibilidad del ratón <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1" value="${st.sensitivity}"></div>
       <div class="row">Densidad de tráfico <input id="set-traffic" type="range" min="0.2" max="1.5" step="0.1" value="${st.traffic}"></div>
       <div class="row">Distancia de visión <input id="set-fog" type="range" min="0.5" max="1.5" step="0.1" value="${st.view}"></div>
       <div class="row"><label><input id="set-inv" type="checkbox" ${st.invertY ? 'checked' : ''}> Invertir eje Y</label></div>
       <div class="row"><label><input id="set-shadows" type="checkbox" ${st.shadows ? 'checked' : ''}> Sombras</label></div>`;
     this.menu({ title: 'Ajustes', html, options: [{ label: 'Guardar y volver', action: () => {
-      st.volume = +$('set-vol').value; st.sensitivity = +$('set-sens').value; st.traffic = +$('set-traffic').value;
+      st.volume = +$('set-vol').value; st.radio = +$('set-radio').value; st.sensitivity = +$('set-sens').value; st.traffic = +$('set-traffic').value;
       st.view = +$('set-fog').value; st.invertY = $('set-inv').checked; st.shadows = $('set-shadows').checked;
       g.applySettings();
       this.pause();

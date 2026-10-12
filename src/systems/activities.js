@@ -44,6 +44,8 @@ export class Activities {
 
   setup() {
     const g = this.game;
+    this.setupDocks();
+    this.setupMetro();
     this.setupPanots();
     this.setupRamps();
     // Carreras
@@ -64,6 +66,104 @@ export class Activities {
     });
     this.chop.active = false;
     this.chopBlip = g.blips.add({ x: ne.x, z: ne.z, icon: '💰', label: 'Desguace de Quim', kind: 'shop', hidden: true });
+  }
+
+  // -------------------------------------------------------------------------
+  // Amarres de barcos
+  setupDocks() {
+    const g = this.game, W = g.world;
+    const spots = [
+      { x: -110, z: 466, h: 0, types: ['speedboat', 'dinghy'], name: 'Port Vell' },
+      { x: 700, z: 482, h: 0, types: ['dinghy', 'speedboat'], name: 'Platja de la Barceloneta' },
+      { x: 910, z: 505, h: 0, types: ['speedboat', 'speedboat'], name: 'Port Olímpic' },
+      { x: -600, z: 970, h: 0, types: ['speedboat'], name: 'Moll de la Zona Franca' },
+    ];
+    this.docks = [];
+    for (const d of spots) {
+      // Busca agua profunda cerca
+      let ok = null;
+      for (let k = 0; k < 40 && !ok; k++) {
+        const x = d.x + (k % 7 - 3) * 6, z = d.z + Math.floor(k / 7) * 6;
+        if (W.isWater(x, z) && W.groundHeight(x, z) < -2.5 && W.groundHeight(x, z + 4) < -2.5) ok = { x, z };
+      }
+      if (!ok) continue;
+      Object.assign(d, ok);
+      this.docks.push(d);
+      g.blips.add({ x: d.x, z: d.z, icon: '⚓', label: 'Barcos: ' + d.name, kind: 'service' });
+    }
+    this.dockT = 0;
+  }
+
+  updateDocks(dt) {
+    const g = this.game, pl = g.player;
+    this.dockT -= dt;
+    if (this.dockT > 0) return;
+    this.dockT = 5;
+    for (const d of this.docks) {
+      const dp = dist2(pl.x, pl.z, d.x, d.z);
+      if (dp > 250 || dp < 40) continue;
+      d.types.forEach((t, i) => {
+        const x = d.x + i * 5, z = d.z;
+        if (g.vehicles.list.some((v) => v.isBoat && dist2(v.x, v.z, x, z) < 4)) return;
+        if (!g.world.isWater(x, z) || g.world.groundHeight(x, z) > -2) return;
+        const v = g.vehicles.spawn(t, x, z, d.h);
+        v.parked = true;
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Metro de Barcelona: viaje rápido entre estaciones
+  setupMetro() {
+    const g = this.game;
+    this.stations = [
+      ['Sants Estació', -760, -150, 'L3 L5'], ['Espanya', -560, -40, 'L1 L3'], ['Paral·lel', -150, 400, 'L2 L3'],
+      ['Catalunya', 30, -30, 'L1 L3'], ['Liceu', 10, 230, 'L3'], ['Jaume I', 200, 180, 'L4'], ['Barceloneta', 330, 420, 'L4'],
+      ['Passeig de Gràcia', 10, -200, 'L2 L3 L4'], ['Diagonal', 10, -360, 'L3 L5'], ['Fontana', 20, -640, 'L3'],
+      ['Sagrada Família', 300, -330, 'L2 L5'], ['Glòries', 600, -40, 'L1'], ['Ciutadella | Vila Olímpica', 650, 330, 'L4'],
+      ['Poblenou', 960, 80, 'L4'], ['Les Corts', -880, -580, 'L3'], ['Drassanes', -20, 410, 'L3'],
+    ].map(([name, x, z, lines]) => {
+      const p = g.world.sidewalkPoint(x, z);
+      return { name, x: p.x, z: p.z, lines };
+    });
+    const b = new GeoBuilder();
+    for (const st of this.stations) {
+      const y = g.world.groundHeight(st.x, st.z);
+      // Poste con el rombo rojo de la "M"
+      b.cylinder(st.x, y, st.z, 0.07, 0.07, 3.2, 0x2a2a2a, 6);
+      b.box(st.x, y + 3.1, st.z, 0.85, 0.85, 0.1, 0xd8202a, Math.PI / 4);
+      b.box(st.x, y + 3.1, st.z, 0.45, 0.45, 0.12, 0xffffff, Math.PI / 4);
+      // Barandilla de la boca de metro
+      b.box(st.x + 1.6, y, st.z, 0.08, 1.0, 3.0, 0x3a3a3a);
+      b.box(st.x - 1.6, y, st.z, 0.08, 1.0, 3.0, 0x3a3a3a);
+      st.marker = g.markers.add(st.x, st.z, { color: 0xd8202a, radius: 1.4, footOnly: true, prompt: `<kbd>E</kbd> Metro · ${st.name} (${st.lines})`, onInteract: () => this.openMetro(st) });
+      g.blips.add({ x: st.x, z: st.z, icon: 'Ⓜ', label: 'Metro ' + st.name, kind: 'metro', color: '#d8202a' });
+    }
+    g.scene.add(b.toMesh(new THREE.MeshLambertMaterial({ vertexColors: true })));
+  }
+
+  openMetro(from) {
+    const g = this.game;
+    const fare = 2.55;
+    const opts = this.stations.filter((s) => s !== from).map((s) => ({
+      label: `${s.name} <small style="opacity:.6">${s.lines}</small>`, price: null,
+      action: () => {
+        if (g.police.level > 0) { g.hud.notify('La policía vigila el metro. ¡Piérdelos antes!'); return 'close'; }
+        if (!g.economy.spend(fare, 'Billete de metro')) return 'close';
+        const fade = document.getElementById('fade');
+        fade.classList.add('on');
+        const mins = Math.max(4, Math.round(dist2(from.x, from.z, s.x, s.z) / 120));
+        setTimeout(() => {
+          g.player.placeAt(s.x + 1, s.z + 1, 0);
+          g.world.sky.time = (g.world.sky.time + mins / 60) % 24;
+          g.stats.metroTrips = (g.stats.metroTrips || 0) + 1;
+          fade.classList.remove('on');
+          g.hud.notify(`🚇 Has llegado a <b>${s.name}</b> (${mins} min)`);
+        }, 1300);
+        return 'close';
+      },
+    }));
+    g.ui.menu({ title: `Ⓜ Metro · ${from.name}`, text: `Billete sencillo: 2,55 €. ¿A qué estación vas?`, options: opts });
   }
 
   // -------------------------------------------------------------------------
@@ -628,6 +728,15 @@ export class Activities {
     if (this.robbery) this.updateRobbery(dt);
     this.checkJump(dt);
     this.updateEvents(dt);
+    this.updateDocks(dt);
+    // Estela de los barcos
+    for (const v of g.vehicles.list) {
+      if (!v.isBoat || v.speed < 3 || dist2(v.x, v.z, g.player.x, g.player.z) > 150) continue;
+      if (Math.random() < dt * v.speed * 2) {
+        const bx = v.x - v.fx * v.T.len * 0.5, bz = v.z - v.fz * v.T.len * 0.5;
+        g.combat.smoke.emit(bx + (Math.random() - 0.5), v.y + 0.1, bz + (Math.random() - 0.5), -v.fz * (Math.random() - 0.5) * 3, 0.5, v.fx * (Math.random() - 0.5) * 3, 1.6, 0.8, 0.95, 0.97, 1, 0.75, 1.5, 0.5);
+      }
+    }
     // Desguace disponible tras la primera misión de Quim
     const unlocked = g.missions.done.has('quim1');
     this.chop.active = unlocked;

@@ -12,13 +12,26 @@ void main() {
 }`;
 const SKY_FRAG = `
 uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 sunColor; uniform float stars; uniform float time;
+uniform float cloudCover; uniform vec3 cloudColor;
 varying vec3 vDir;
 float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164)))*43758.5453); }
+float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float n2(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(h2(i),h2(i+vec2(1,0)),f.x), mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float v=0.0, a=0.5; for(int i=0;i<5;i++){ v+=a*n2(p); p*=2.03; a*=0.5; } return v; }
 void main() {
   float h = clamp(vDir.y, -0.2, 1.0);
   vec3 col = mix(horizon, top, pow(max(h, 0.0), 0.55));
   float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0);
   col += sunColor * (pow(s, 600.0) * 4.0 + pow(s, 12.0) * 0.25);
+  if (vDir.y > 0.02) {
+    vec2 uv = vDir.xz / (vDir.y + 0.08) * 1.6 + vec2(time * 0.006, time * 0.002);
+    float c = fbm(uv);
+    float cov = smoothstep(1.0 - cloudCover, 1.0 - cloudCover + 0.35, c);
+    float lit = 0.75 + 0.25 * fbm(uv * 1.7 + 3.0);
+    vec3 cc = cloudColor * lit + sunColor * pow(s, 4.0) * 0.4;
+    col = mix(col, cc, cov * smoothstep(0.02, 0.2, vDir.y) * 0.92);
+  }
   if (stars > 0.0 && vDir.y > 0.05) {
     vec3 q = floor(vDir * 300.0);
     float st = step(0.9975, hash(q));
@@ -41,7 +54,7 @@ export class Sky {
     this.uniforms = {
       top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() },
       sunDir: { value: new THREE.Vector3() }, sunColor: { value: new THREE.Color() },
-      stars: { value: 0 }, time: { value: 0 },
+      stars: { value: 0 }, time: { value: 0 }, cloudCover: { value: 0.35 }, cloudColor: { value: new THREE.Color(1, 1, 1) },
     };
     const sky = new THREE.Mesh(new THREE.SphereGeometry(4000, 24, 12),
       new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false }));
@@ -109,6 +122,8 @@ export class Sky {
     this.uniforms.sunDir.value.copy(elev > -0.1 ? sunDir : sunDir.clone().negate());
     this.uniforms.sunColor.value.set(elev > -0.1 ? 0xffe6b0 : 0x8899cc).multiplyScalar(elev > -0.1 ? (1 - grey * 0.8) : 0.25);
     this.uniforms.stars.value = this.night * (1 - grey);
+    this.uniforms.cloudCover.value = 0.3 + grey * 0.6;
+    this.uniforms.cloudColor.value.copy(new THREE.Color(0x1a2030).lerp(new THREE.Color(0xf4f2ee), day)).lerp(new THREE.Color(0xf0a070), dusk * 0.5).lerp(new THREE.Color(0x707880), grey * 0.6 * day);
 
     // Luces
     const sunI = day * (2.4 - grey * 1.5);

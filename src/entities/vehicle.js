@@ -23,6 +23,11 @@ export const VEHICLE_TYPES = {
     colors: [0xf0f0f0, 0x3a6ad8, 0xe8a020, 0x2a7a3a], heavy: true },
   police: { name: 'Patrulla', kind: 'car', len: 4.7, wid: 1.9, hei: 1.5, mass: 1500, maxSpeed: 56, accel: 12.5, brake: 18, grip: 12.5, steer: 0.6, value: 0, colors: [0xf4f4f4], police: true },
   ambulance: { name: 'Ambulància', kind: 'car', len: 5.4, wid: 2.1, hei: 2.5, mass: 2600, maxSpeed: 40, accel: 7, brake: 13, grip: 10, steer: 0.55, value: 0, colors: [0xf4f4f4], ambulance: true },
+  speedboat: { name: 'Llanxa Gregal', kind: 'boat', len: 6.5, wid: 2.3, hei: 1.6, mass: 1400, maxSpeed: 32, accel: 7, brake: 6, grip: 2.2, steer: 0.9, value: 4000,
+    colors: [0xf4f4f4, 0xd83a3a, 0x1f3a8e, 0xf0c030] },
+  dinghy: { name: 'Zodiac Tramuntana', kind: 'boat', len: 4.2, wid: 1.9, hei: 1.0, mass: 500, maxSpeed: 22, accel: 6, brake: 5, grip: 2.6, steer: 1.0, value: 900,
+    colors: [0x3a3a3a, 0xe86a20, 0x2a5a8a] },
+  policeboat: { name: 'Patrullera', kind: 'boat', len: 7.5, wid: 2.6, hei: 2.0, mass: 2000, maxSpeed: 34, accel: 7.5, brake: 6, grip: 2.4, steer: 0.85, value: 0, colors: [0xf4f4f4], police: true },
   scooter: { name: 'Llevant 125', kind: 'bike', len: 1.9, wid: 0.75, hei: 1.2, mass: 140, maxSpeed: 27, accel: 8, brake: 13, grip: 11, steer: 0.75, value: 350,
     colors: [0xf0f0f0, 0xd83a3a, 0x3a3a3a, 0x60c0e0, 0xf0c030] },
   moto: { name: 'Ponent 750', kind: 'bike', len: 2.1, wid: 0.8, hei: 1.25, mass: 220, maxSpeed: 62, accel: 15, brake: 18, grip: 13, steer: 0.7, value: 2800,
@@ -32,6 +37,8 @@ export const VEHICLE_TYPES = {
 const sharedMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 const burntMat = new THREE.MeshLambertMaterial({ color: 0x1c1c1c });
 const wheelMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+const rimMat = new THREE.MeshLambertMaterial({ color: 0xb8bcc0 });
+const rimGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.12, 8).rotateZ(Math.PI / 2);
 const geoCache = new Map();
 let wheelGeo = null, bikeWheelGeo = null;
 
@@ -43,7 +50,31 @@ function buildBody(type, color) {
   const L = T.len, W = T.wid, H = T.hei;
   const glass = 0x1d2630;
   const trim = 0x202020;
-  if (T.kind === 'bike') {
+  if (T.kind === 'boat') {
+    // Casco en cuña + cabina
+    const hz = L / 2, hw = W / 2;
+    const hull = color, deck = 0xd8cfb8;
+    const P = (x, y, z) => [x, y, z];
+    const bow = P(0, 0.9, hz), kb = P(0, -0.3, hz - 1.2);
+    b.quad(P(hw, 0.9, -hz), P(hw, 0.9, hz - 1.6), P(hw * 0.6, -0.35, hz - 1.6), P(hw * 0.6, -0.35, -hz), hull);
+    b.quad(P(-hw * 0.6, -0.35, -hz), P(-hw * 0.6, -0.35, hz - 1.6), P(-hw, 0.9, hz - 1.6), P(-hw, 0.9, -hz), hull);
+    b.tri(P(hw, 0.9, hz - 1.6), bow, P(hw * 0.6, -0.35, hz - 1.6), hull);
+    b.tri(P(-hw, 0.9, hz - 1.6), P(-hw * 0.6, -0.35, hz - 1.6), bow, hull);
+    b.tri(P(hw * 0.6, -0.35, hz - 1.6), bow, kb, hull);
+    b.tri(P(-hw * 0.6, -0.35, hz - 1.6), kb, bow, hull);
+    b.quad(P(hw * 0.6, -0.35, -hz), P(-hw * 0.6, -0.35, -hz), P(-hw, 0.9, -hz), P(hw, 0.9, -hz), hull); // popa
+    b.quad(P(hw, 0.9, -hz), P(-hw, 0.9, -hz), P(-hw, 0.9, hz - 1.6), P(hw, 0.9, hz - 1.6), deck); // cubierta
+    b.tri(P(hw, 0.9, hz - 1.6), P(-hw, 0.9, hz - 1.6), bow, deck);
+    b.box(0, 0.25, 0, W + 0.04, 0.12, L - 1.8, 0x1a1a1a); // línea de flotación
+    if (type !== 'dinghy') {
+      b.box(0, 0.9, -0.2, W * 0.7, 0.9, 1.6, T.police ? 0x1f3a8e : 0xf0f0f0);
+      b.box(0, 1.5, 0.45, W * 0.66, 0.5, 0.08, glass);
+      b.box(0, 1.8, -0.2, W * 0.75, 0.08, 1.8, T.police ? 0x1f3a8e : 0xe8e8e8);
+    } else {
+      b.box(0, 0.9, -0.6, 0.6, 0.4, 0.6, 0x2a2a2a);
+    }
+    b.box(0, 0.4, -hz - 0.25, 0.4, 0.9, 0.45, 0x222222); // motor fueraborda
+  } else if (T.kind === 'bike') {
     b.box(0, 0.35, 0, 0.25, 0.4, L * 0.75, color);
     b.box(0, 0.75, -0.25, 0.32, 0.12, 0.7, 0x1a1a1a); // asiento
     if (type === 'scooter') {
@@ -76,28 +107,73 @@ function buildBody(type, color) {
       b.box(0, H, 0.4, 1.2, 0.15, 0.4, 0xd02020);
     }
   } else {
-    // Turismo: chasis + habitáculo
-    const bodyH = type === 'sports' ? 0.55 : type === 'suv' ? 0.85 : 0.65;
-    const base = type === 'suv' ? 0.42 : 0.3;
-    b.box(0, base, 0, W, bodyH, L, color);
-    const cabL = L * (type === 'sports' ? 0.42 : type === 'compact' ? 0.55 : 0.5);
-    const cabZ = type === 'compact' ? -0.25 : -0.1;
-    const cabH = H - base - bodyH;
-    b.box(0, base + bodyH, cabZ, W - 0.16, cabH, cabL, glass);
-    b.box(0, base + bodyH + cabH - 0.06, cabZ, W - 0.14, 0.08, cabL - 0.3, color); // techo
-    b.box(0, base + bodyH, cabZ + cabL / 2 - 0.05, W - 0.4, cabH - 0.05, 0.1, color); // pilar
-    b.box(0, base + 0.05, 0, W + 0.04, 0.12, L + 0.06, trim); // parachoques
+    // Turismo: chasis perfilado + habitáculo trapezoidal
+    const P = {
+      compact: { base: 0.3, bodyH: 0.62, cb: -1.75, cf: 0.55, rb: -1.55, rf: -0.15, nose: 0.3 },
+      sedan: { base: 0.3, bodyH: 0.6, cb: -1.55, cf: 0.85, rb: -1.1, rf: 0.2, nose: 0.35 },
+      taxi: { base: 0.3, bodyH: 0.6, cb: -1.55, cf: 0.85, rb: -1.1, rf: 0.2, nose: 0.35 },
+      police: { base: 0.3, bodyH: 0.62, cb: -1.55, cf: 0.85, rb: -1.1, rf: 0.2, nose: 0.35 },
+      sports: { base: 0.24, bodyH: 0.5, cb: -1.3, cf: 0.75, rb: -0.85, rf: 0.0, nose: 0.5 },
+      suv: { base: 0.42, bodyH: 0.8, cb: -2.25, cf: 0.9, rb: -2.15, rf: 0.3, nose: 0.25 },
+    }[type] || { base: 0.3, bodyH: 0.62, cb: -1.5, cf: 0.8, rb: -1.1, rf: 0.2, nose: 0.3 };
+    const y0 = P.base, y1 = P.base + P.bodyH, yTop = H;
+    const hw = W / 2, hz = L / 2;
+    // Perfil lateral del chasis (z, y), sentido antihorario visto desde +x
+    const prof = [[-hz, y0], [hz, y0], [hz, y1 - 0.12], [hz - P.nose, y1], [-hz + 0.25, y1], [-hz, y1 - 0.1]];
+    const side = (x, flip) => {
+      const pts = prof.map(([z, y]) => [x, y, z]);
+      for (let i = 1; i < pts.length - 1; i++) {
+        if (flip) b.tri(pts[0], pts[i], pts[i + 1], color, [-1, 0, 0]);
+        else b.tri(pts[0], pts[i + 1], pts[i], color, [1, 0, 0]);
+      }
+    };
+    side(hw, false);
+    side(-hw, true);
+    for (let i = 0; i < prof.length; i++) {
+      const [za, ya] = prof[i], [zb, yb] = prof[(i + 1) % prof.length];
+      b.quad([-hw, ya, za], [hw, ya, za], [hw, yb, zb], [-hw, yb, zb], color);
+    }
+    // Habitáculo: base ancha, techo estrecho
+    const cw = hw - 0.06, tw = hw - 0.24;
+    const g0 = [cw, y1, P.cf], g1 = [-cw, y1, P.cf], g2 = [-tw, yTop, P.rf], g3 = [tw, yTop, P.rf];
+    const h0 = [cw, y1, P.cb], h1 = [-cw, y1, P.cb], h2 = [-tw, yTop, P.rb], h3 = [tw, yTop, P.rb];
+    b.quad(g1, g0, g3, g2, glass); // parabrisas
+    b.quad(h0, h1, h2, h3, glass); // luna trasera
+    b.quad(g3, h3, h2, g2, color); // techo
+    b.quad(g0, h0, h3, g3, glass); // lateral derecho
+    b.quad(h1, g1, g2, h2, glass); // lateral izquierdo
+    // Pilares B y marcos
+    const bz = (P.cf + P.cb) / 2, bzT = (P.rf + P.rb) / 2;
+    for (const sx of [1, -1]) {
+      const pa = [sx * (cw + 0.01), y1, bz - 0.06], pb = [sx * (cw + 0.01), y1, bz + 0.06], pc = [sx * (tw + 0.01), yTop, bzT + 0.06], pd = [sx * (tw + 0.01), yTop, bzT - 0.06];
+      if (sx > 0) b.quad(pb, pa, pd, pc, color, null, [1, 0, 0]); else b.quad(pa, pb, pc, pd, color, null, [-1, 0, 0]);
+      b.box(sx * (hw + 0.06), y1 - 0.05, P.cf - 0.15, 0.12, 0.1, 0.18, color); // retrovisor
+      b.box(sx * (hw + 0.005), y0 + 0.28, bz, 0.01, 0.02, 1.6, trim); // línea de puertas
+      b.box(sx * (hw + 0.01), y0 + 0.36, bz + 0.25, 0.02, 0.04, 0.16, 0x888888); // maneta
+    }
+    // Pasos de rueda, parachoques y calandra
+    const wz = hz - 0.8;
+    for (const sz of [wz, -wz]) for (const sx of [1, -1]) b.box(sx * (hw - 0.04), 0.12, sz, 0.1, 0.55, 0.95, 0x141414);
+    b.box(0, y0 - 0.02, hz - 0.02, W + 0.04, 0.2, 0.12, trim);
+    b.box(0, y0 - 0.02, -hz + 0.02, W + 0.04, 0.2, 0.12, trim);
+    b.box(0, y0 + 0.22, hz + 0.01, W * 0.4, 0.14, 0.02, 0x1a1a1a);
+    b.box(0, y0 + 0.18, -hz - 0.01, 0.5, 0.11, 0.02, 0xe8e8e0); // matrícula
+    b.box(0, y0 + 0.18, hz + 0.02, 0.5, 0.11, 0.02, 0xe8e8e0);
     if (T.taxi) {
       // Taxi de Barcelona: negro con puertas amarillas
-      b.box(0, base + 0.08, cabZ, W + 0.02, bodyH - 0.1, cabL * 0.9, 0xf2c200);
-      b.box(0, H + 0.02, cabZ, 0.5, 0.14, 0.22, 0xf0f0f0);
-      b.box(0, H + 0.08, cabZ + 0.1, 0.1, 0.06, 0.06, 0x30e030);
+      for (const sx of [1, -1]) b.box(sx * (hw + 0.008), y0 + 0.05, bz, 0.01, P.bodyH - 0.12, 1.9, 0xf2c200);
+      b.box(0, yTop + 0.01, (P.rf + P.rb) / 2, 0.55, 0.15, 0.24, 0xf0f0f0);
+      b.box(0, yTop + 0.1, (P.rf + P.rb) / 2 + 0.1, 0.1, 0.06, 0.06, 0x30e030);
     }
     if (T.police) {
-      b.box(0, base + 0.12, 0, W + 0.02, 0.22, L - 0.4, 0x1f3a8e);
-      b.box(0, base + 0.36, 0, W + 0.021, 0.08, L - 0.4, 0xe8e000);
+      for (const sx of [1, -1]) {
+        b.box(sx * (hw + 0.008), y0 + 0.12, 0, 0.01, 0.22, L - 0.5, 0x1f3a8e);
+        b.box(sx * (hw + 0.009), y0 + 0.36, 0, 0.01, 0.07, L - 0.5, 0xe8e000);
+      }
+      b.box(0, y1 + 0.01, hz - 0.6, W - 0.4, 0.01, 0.6, 0x1f3a8e);
     }
-    if (type === 'sports') b.box(0, base + bodyH + 0.05, -L / 2 + 0.2, W - 0.2, 0.06, 0.3, 0x111111); // alerón
+    if (type === 'sports') b.box(0, y1 + 0.12, -hz + 0.25, W - 0.2, 0.05, 0.32, 0x111111), b.box(0, y1, -hz + 0.25, 0.06, 0.14, 0.06, 0x111111);
+    if (type === 'suv') { b.box(0, yTop + 0.02, (P.rf + P.rb) / 2, W - 0.5, 0.06, 2, 0x2a2a2a); b.box(0, y1 - 0.1, -hz - 0.15, 0.7, 0.7, 0.25, 0x2a2a2a); }
   }
   // Faros y pilotos
   if (T.kind !== 'bike') {
@@ -145,6 +221,7 @@ export class Vehicle {
     this.wheelSpin = 0;
     this.radius = this.T.wid / 2;
     this.isBike = this.T.kind === 'bike';
+    this.isBoat = this.T.kind === 'boat';
     this.alarm = false;
     this.buildModel();
   }
@@ -186,11 +263,16 @@ export class Vehicle {
       pivot.position.set(x, r, z);
       const w = new THREE.Mesh(g, wheelMat);
       w.castShadow = true;
+      const rim = new THREE.Mesh(rimGeo, rimMat);
+      rim.position.x = x > 0 ? 0.07 : -0.07;
+      if (g !== bikeWheelGeo) w.add(rim);
       pivot.add(w);
       this.bodyGroup.add(pivot);
       this.wheels.push({ pivot, w, front });
     };
-    if (this.isBike) {
+    if (this.isBoat) {
+      // sin ruedas
+    } else if (this.isBike) {
       addWheel(0, T.len / 2 - 0.3, true, bikeWheelGeo, 0.32);
       addWheel(0, -T.len / 2 + 0.3, false, bikeWheelGeo, 0.32);
     } else {
@@ -229,6 +311,7 @@ export class Vehicle {
   }
 
   update(dt, collision) {
+    if (this.isBoat) return this.updateBoat(dt, collision);
     const T = this.T;
     if (this.destroyed) {
       this.input.throttle = 0; this.input.brake = 1; this.input.steer = 0;
@@ -348,6 +431,46 @@ export class Vehicle {
     }
     this.prevVF = vF;
     if (this.destroyed) this.burnT += dt;
+    this.syncModel(dt);
+  }
+
+  /** Física de lancha: deriva, cabeceo, varado en la costa. */
+  updateBoat(dt, collision) {
+    const T = this.T, inp = this.input;
+    const fx = this.fx, fz = this.fz, rx = -fz, rz = fx;
+    let vF = this.vx * fx + this.vz * fz;
+    let vS = this.vx * rx + this.vz * rz;
+    this.steer = damp(this.steer, clamp(inp.steer, -1, 1), 5, dt);
+    const engine = !this.destroyed;
+    let a = 0;
+    if (engine && inp.throttle > 0) a += T.accel * inp.throttle * Math.max(0.05, 1 - (vF / T.maxSpeed) ** 2);
+    if (engine && inp.brake > 0) a -= (vF > 0.5 ? T.brake : T.accel * 0.5) * inp.brake * (vF < -6 ? 0 : 1);
+    a -= vF * 0.25;
+    vF += a * dt;
+    vS -= vS * Math.min(1, T.grip * dt * (inp.handbrake ? 0.4 : 1));
+    const turn = -this.steer * T.steer * (0.35 + Math.min(1, Math.abs(vF) / 10)) * Math.sign(vF || 1);
+    this.yawRate = damp(this.yawRate, turn, 3, dt);
+    this.vF = vF; this.vS = vS;
+    this.vx = fx * vF + rx * vS; this.vz = fz * vF + rz * vS;
+    this.heading = wrapAngle(this.heading + this.yawRate * dt);
+    const nx = this.x + this.vx * dt, nz = this.z + this.vz * dt;
+    // Varado: no puede entrar en tierra
+    const ahead = groundHeight(nx + fx * T.len * 0.45, nz + fz * T.len * 0.45);
+    if (ahead > SEA_LEVEL - 0.5) {
+      const impact = Math.abs(vF);
+      if (impact > 6) { this.damage(impact * impact * 2, null, 'crash'); this.lastImpact = { speed: impact, t: performance.now() }; }
+      this.vx *= -0.3; this.vz *= -0.3;
+    } else { this.x = nx; this.z = nz; }
+    this.x = clamp(this.x, MAP.minX - 1500, MAP.maxX + 1500);
+    this.z = clamp(this.z, MAP.minZ, MAP.maxZ + 2500);
+    if (collision) this.collideWorld(collision);
+    this.t = (this.t || 0) + dt;
+    const sink = this.destroyed ? Math.min(3, (this.burnT += dt) * 0.3) : 0;
+    this.y = SEA_LEVEL - 0.15 + Math.sin(this.t * 1.7 + this.id) * 0.08 - sink;
+    this.onGround = true;
+    this.pitch = damp(this.pitch, -Math.min(0.18, Math.abs(vF) * 0.008) + Math.sin(this.t * 1.3) * 0.02, 3, dt);
+    this.roll = damp(this.roll, clamp(this.yawRate * vF * 0.04, -0.3, 0.3) + Math.sin(this.t * 1.1 + 1) * 0.03, 3, dt);
+    this.drifting = Math.abs(vS) > 3;
     this.syncModel(dt);
   }
 

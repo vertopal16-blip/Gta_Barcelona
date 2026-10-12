@@ -52,7 +52,7 @@ export class City {
     const k = Math.floor(x / CH) + ',' + Math.floor(z / CH);
     let c = this.chunks.get(k);
     if (!c) {
-      c = { roof: new GeoBuilder(), plain: new GeoBuilder(), facades: {} };
+      c = { roof: new GeoBuilder(), plain: new GeoBuilder(), detail: new GeoBuilder(), glow: new GeoBuilder(), facades: {} };
       this.chunks.set(k, c);
     }
     return c;
@@ -116,7 +116,19 @@ export class City {
     // Planta baja más oscura (comercios) + resto de fachada
     const gf = Math.min(4.2, height * 0.3);
     ch.plain.prism(poly, y0, base.lo + gf, opts.groundColor ?? jitterColor(0x5a5048, this.rng, 0.2), { roofBuilder: null, roof: false });
-    fb.prism(poly, base.lo + gf, y1, color, { roofBuilder: ch.roof, roofColor, vOffset: 0, uOffset: this.rng() * 30 });
+    const uOffset = this.rng() * 30;
+    fb.prism(poly, base.lo + gf, y1, color, { roofBuilder: ch.roof, roofColor, vOffset: 0, uOffset });
+    if (opts.detail !== false && district !== 'zonafranca') this.facadeDetail(poly, base, gf, height, style, district, ch, uOffset, color);
+    // Tejados de teja en los barrios antiguos
+    if (poly.length === 8 && ['gotic', 'born', 'raval', 'gracia', 'barceloneta', 'poblesec', 'sants'].includes(district) && this.rng() < 0.55) {
+      const tile = jitterColor(0xa65a3c, this.rng, 0.12);
+      const rh = Math.min(3, 1.2 + this.areaSpan(poly) * 0.12);
+      const n = poly.length / 2;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        ch.roof.tri([poly[i * 2], y1, poly[i * 2 + 1]], [poly[j * 2], y1, poly[j * 2 + 1]], [cx, y1 + rh, cz], tile);
+      }
+    }
     // Cornisa
     if (opts.cornice !== false && height > 10) {
       const grown = growPoly(poly, 0.35);
@@ -131,6 +143,96 @@ export class City {
     const b = { poly, cx, cz, y0, y1, district, style };
     this.buildings.push(b);
     return b;
+  }
+
+  areaSpan(poly) {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let i = 0; i < poly.length; i += 2) { x0 = Math.min(x0, poly[i]); x1 = Math.max(x1, poly[i]); z0 = Math.min(z0, poly[i + 1]); z1 = Math.max(z1, poly[i + 1]); }
+    return Math.min(x1 - x0, z1 - z0);
+  }
+
+  /** Comercios en planta baja (escaparates, toldos, rótulos) y balcones en fachadas a la calle. */
+  facadeDetail(poly, base, gf, height, style, district, ch, uOffset, wallColor) {
+    const rng = this.rng;
+    const n = poly.length / 2;
+    const cellW = 3.4, cellH = 3.2;
+    let acc = uOffset;
+    const AWN = [0xb8322a, 0x2a6a3a, 0x1f4a7a, 0xd8a020, 0x6a2a5a, 0xe0e0d8, 0x3a3a3a, 0xc85a2a];
+    const SIGN = [0x1a1a1a, 0x8a1a1a, 0x1a3a6a, 0xf0e8d0, 0x2a5a3a, 0xd8b030];
+    const y0 = base.lo;
+    const balconies = (style === 'modernista' || style === 'gotic') && height > 9;
+    const floors = Math.min(5, Math.floor((height - gf) / cellH));
+    const winBottom = style === 'modernista' ? 0.6 : style === 'gotic' ? 0.55 : 0.9;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const ax = poly[i * 2], az = poly[i * 2 + 1], bx = poly[j * 2], bz = poly[j * 2 + 1];
+      const len = Math.hypot(bx - ax, bz - az);
+      const startAcc = acc;
+      acc += len;
+      if (len < 4) continue;
+      const dx = (bx - ax) / len, dz = (bz - az) / len;
+      const nx = -dz, nz = dx;
+      const mx = (ax + bx) / 2 + nx * 2.5, mz = (az + bz) / 2 + nz * 2.5;
+      if (this.roads.roadDistance(mx, mz) > 4) continue; // no da a la calle
+      const P = (s, y, out) => [ax + dx * s + nx * out, y, az + dz * s + nz * out];
+      const facing = [nx, 0, nz];
+      // --- Comercios ---
+      let s = 0.6;
+      while (s < len - 2.5) {
+        const w = Math.min(len - 0.6 - s, rng.range(3.5, 7.5));
+        if (w < 2.5) break;
+        const lit = rng() < 0.55;
+        const glassC = lit ? rng.pick([0xe8d0a0, 0xf0e0c0, 0xd8e0e8, 0xf0c890]) : rng() < 0.5 ? 0x34495a : 0x4a5a64;
+        (lit ? ch.glow : ch.detail).quad(P(s + 0.2, y0 + 0.35, 0.04), P(s + w - 0.2, y0 + 0.35, 0.04), P(s + w - 0.2, y0 + 2.9, 0.04), P(s + 0.2, y0 + 2.9, 0.04), glassC, null, facing);
+        // Puerta
+        const dpos = s + w * rng.range(0.25, 0.75);
+        ch.detail.quad(P(dpos - 0.5, y0, 0.06), P(dpos + 0.5, y0, 0.06), P(dpos + 0.5, y0 + 2.4, 0.06), P(dpos - 0.5, y0 + 2.4, 0.06), 0x2a2420, null, facing);
+        const r = rng();
+        if (r < 0.45) {
+          // Toldo inclinado
+          const c = rng.pick(AWN);
+          const hi = y0 + 3.3, lo = y0 + 2.75, out = 1.3;
+          ch.detail.quad(P(s + 0.1, hi, 0.02), P(s + w - 0.1, hi, 0.02), P(s + w - 0.1, lo, out), P(s + 0.1, lo, out), c);
+          ch.detail.quad(P(s + w - 0.1, lo, out), P(s + 0.1, lo, out), P(s + 0.1, hi, 0.02), P(s + w - 0.1, hi, 0.02), c);
+          ch.detail.quad(P(s + 0.1, lo - 0.3, out), P(s + w - 0.1, lo - 0.3, out), P(s + w - 0.1, lo, out), P(s + 0.1, lo, out), c, null, facing);
+        } else if (r < 0.85) {
+          // Rótulo
+          const c = rng.pick(SIGN);
+          ch.detail.box(P(s + w / 2, 0, 0.12)[0], y0 + 3.0, P(s + w / 2, 0, 0.12)[2], w * 0.8, 0.6, 0.15, c, Math.atan2(dx, dz) + Math.PI / 2);
+          const accent = rng.pick([0xf0f0f0, 0xf2b33d, 0xd83a2a, 0x40c0e0]);
+          const cp = P(s + w / 2, 0, 0.21);
+          ch.glow.box(cp[0], y0 + 3.15, cp[2], w * 0.5, 0.28, 0.02, accent, Math.atan2(dx, dz) + Math.PI / 2);
+        }
+        if (rng() < 0.035) {
+          // Farmacia: cruz verde luminosa perpendicular a la fachada
+          const cp = P(s + 0.4, 0, 0.6);
+          ch.glow.box(cp[0], y0 + 3.4, cp[2], 0.3, 0.9, 0.12, 0x30e050, Math.atan2(dx, dz));
+          ch.glow.box(cp[0], y0 + 3.7, cp[2], 0.9, 0.3, 0.12, 0x30e050, Math.atan2(dx, dz));
+        }
+        s += w + 0.3;
+      }
+      // --- Balcones ---
+      if (!balconies) continue;
+      for (let k = 1; k <= floors; k++) {
+        const yb = y0 + gf + (k - 1) * cellH + winBottom;
+        if (yb > y0 + height - 2) break;
+        // Centros de ventana: (acc + s)/cellW ≡ 0.5 (mod 1)
+        let first = cellW * (Math.ceil((startAcc) / cellW - 0.5) + 0.5) - startAcc;
+        for (let ws = first; ws < len - 0.9; ws += cellW) {
+          if (ws < 0.9) continue;
+          if (style === 'gotic' && rng() < 0.4) continue;
+          const half = style === 'modernista' ? 0.95 : 0.7, out = 0.6;
+          const rail = style === 'modernista' ? 0x4a4038 : 0x5a5048;
+          ch.detail.quad(P(ws - half, yb, 0), P(ws + half, yb, 0), P(ws + half, yb, out), P(ws - half, yb, out), jitterColor(wallColor, rng, 0.08), null, [0, 1, 0]);
+          const rt = yb + 0.75;
+          ch.detail.quad(P(ws - half, yb - 0.12, out), P(ws + half, yb - 0.12, out), P(ws + half, yb + 0.05, out), P(ws - half, yb + 0.05, out), jitterColor(wallColor, rng, 0.1), null, facing);
+          ch.detail.quad(P(ws - half, rt - 0.06, out), P(ws + half, rt - 0.06, out), P(ws + half, rt, out), P(ws - half, rt, out), rail, null, facing);
+          for (let b = ws - half + 0.16; b < ws + half; b += 0.32) ch.detail.quad(P(b - 0.025, yb, out), P(b + 0.025, yb, out), P(b + 0.025, rt, out), P(b - 0.025, rt, out), rail, null, facing);
+          // Plantas en algunos balcones
+          if (rng() < 0.15) ch.detail.box(P(ws, 0, out - 0.2)[0], yb, P(ws, 0, out - 0.2)[2], 0.35, 0.35, 0.35, rng.pick([0x3f7a35, 0xc83a3a, 0x5a8a3a]));
+        }
+      }
+    }
   }
 
   /** Manzana del Eixample: octógono con chaflanes y patio interior. */
@@ -706,12 +808,15 @@ export class City {
       }
       if (!c.roof.empty) { const m = c.roof.toMesh(this.mat.plain); m.receiveShadow = true; m.castShadow = true; this.group.add(m); }
       if (!c.plain.empty) { const m = c.plain.toMesh(this.mat.plain); m.receiveShadow = true; m.castShadow = true; this.group.add(m); }
+      if (!c.detail.empty) { const m = c.detail.toMesh(this.mat.plainDouble); m.receiveShadow = true; this.group.add(m); }
+      if (!c.glow.empty) { const m = c.glow.toMesh(this.glowMat || (this.glowMat = new THREE.MeshBasicMaterial({ vertexColors: true }))); this.group.add(m); }
     }
     this.chunks.clear();
   }
 
   /** Iluminación nocturna de farolas. */
   setNight(f) {
+    if (this.glowMat) { const k = 0.45 + f * 0.55; this.glowMat.color.setRGB(k, k, k); }
     if (this.lampMat) this.lampMat.color.setRGB(0.33 + f * 0.67, 0.33 + f * 0.6, 0.33 + f * 0.35);
   }
 }
